@@ -1,0 +1,8 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "ignorePatterns": ["next-env.d.ts", ".next/", "node_modules/"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "react/no-unescaped-entities": "off"
+  }
+}

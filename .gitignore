@@ -1,0 +1,48 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node / Next.js
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+coverage/
+**/coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Runtime data: never commit databases, uploads, or generated reports
+var/
+**/var/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+uploads/
+reports/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+
+# Scratch space
+tmp/

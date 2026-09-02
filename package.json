@@ -1,0 +1,24 @@
+{
+  "name": "shixiaoguan-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:api": "python3 -m uv --directory apps/api run uvicorn shixiaoguan_api.main:app --reload --host 127.0.0.1 --port 8000",
+    "test": "pnpm test:web && pnpm test:api",
+    "test:web": "pnpm --dir apps/web test",
+    "test:api": "python3 -m uv --directory apps/api run pytest",
+    "test:e2e": "pnpm --dir apps/web test:e2e",
+    "lint": "pnpm lint:web && pnpm lint:api",
+    "lint:web": "pnpm --dir apps/web lint",
+    "lint:api": "python3 -m uv --directory apps/api run ruff check . && python3 -m uv --directory apps/api run mypy src",
+    "export:openapi": "MODEL_MODE=replay DATABASE_URL=sqlite:// OPENAI_API_KEY= node scripts/run-uv.mjs --directory apps/api run python ../../scripts/export_openapi.py",
+    "generate:api-types": "pnpm export:openapi && pnpm --dir apps/web generate:api-types",
+    "check:contract": "pnpm generate:api-types && git diff --exit-code -- apps/api/openapi.json apps/web/lib/api.generated.ts",
+    "check:secrets": "python3 scripts/scan_secrets.py",
+    "check": "pnpm check:secrets && pnpm lint && pnpm test && pnpm --dir apps/web typecheck && pnpm --dir apps/web build && pnpm check:contract"
+  },
+  "devDependencies": {}
+}

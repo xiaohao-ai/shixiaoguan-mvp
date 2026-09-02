@@ -1,0 +1,127 @@
+from enum import Enum
+
+
+class StringEnum(str, Enum):
+    def __str__(self) -> str:
+        return self.value
+
+
+class DataStatus(StringEnum):
+    SYNTHETIC = "SYNTHETIC"
+    PUBLIC_SAMPLE = "PUBLIC_SAMPLE"
+    USER_PROVIDED = "USER_PROVIDED"
+    ENTERPRISE_AUTHORIZED = "ENTERPRISE_AUTHORIZED"
+
+
+class DataSensitivityLevel(StringEnum):
+    SYNTHETIC_ONLY = "SYNTHETIC_ONLY"
+    USER_CONTENT_RESTRICTED = "USER_CONTENT_RESTRICTED"
+
+
+class ProjectStatus(StringEnum):
+    DRAFT = "DRAFT"
+    BRIEF_READY = "BRIEF_READY"
+    PLAN_PROPOSED = "PLAN_PROPOSED"
+    PLAN_APPROVED = "PLAN_APPROVED"
+    SIMULATION_READY = "SIMULATION_READY"
+    SIMULATION_RUNNING = "SIMULATION_RUNNING"
+    DATA_READY = "DATA_READY"
+    DATA_VALIDATED = "DATA_VALIDATED"
+    DATA_BLOCKED = "DATA_BLOCKED"
+    ANALYZED = "ANALYZED"
+    DECISION_PROPOSED = "DECISION_PROPOSED"
+    DECISION_APPROVED = "DECISION_APPROVED"
+    HANDOFF_DRAFT_READY = "HANDOFF_DRAFT_READY"
+    ARCHIVED = "ARCHIVED"
+    NEEDS_INPUT = "NEEDS_INPUT"
+    TOOL_FAILED = "TOOL_FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class ApprovalGate(StringEnum):
+    EXPERIMENT_PLAN = "EXPERIMENT_PLAN"
+    DECISION = "DECISION"
+    PIVOT_REVISION = "PIVOT_REVISION"
+    FIRST_ORDER_ASSUMPTIONS = "FIRST_ORDER_ASSUMPTIONS"
+
+
+class ApprovalDecision(StringEnum):
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    REQUEST_CHANGES = "REQUEST_CHANGES"
+    REQUEST_MORE_DATA = "REQUEST_MORE_DATA"
+
+
+class ApprovalStatus(StringEnum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+    MORE_DATA_REQUESTED = "MORE_DATA_REQUESTED"
+
+
+class QualitySeverity(StringEnum):
+    BLOCK = "BLOCK"
+    WARN = "WARN"
+    INFO = "INFO"
+
+
+class QualityStatus(StringEnum):
+    PASS = "PASS"
+    WARN = "WARN"
+    BLOCK = "BLOCK"
+
+
+class DecisionOutcome(StringEnum):
+    GO = "GO"
+    PIVOT = "PIVOT"
+    NO_GO = "NO_GO"
+    EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT"
+
+
+class EvidenceKind(StringEnum):
+    OBSERVED = "OBSERVED"
+    INFERRED = "INFERRED"
+    RECOMMENDED = "RECOMMENDED"
+
+
+class EvidenceStance(StringEnum):
+    SUPPORTS = "SUPPORTS"
+    OPPOSES = "OPPOSES"
+    NEUTRAL = "NEUTRAL"
+
+
+class StatementType(StringEnum):
+    OBSERVED = "OBSERVED"
+    INFERRED = "INFERRED"
+    RECOMMENDED = "RECOMMENDED"
+
+
+class InferenceStrength(StringEnum):
+    CAUSAL = "CAUSAL"
+    QUASI_EXPERIMENTAL = "QUASI_EXPERIMENTAL"
+    ASSOCIATIONAL = "ASSOCIATIONAL"
+    UNDETERMINED = "UNDETERMINED"
+
+
+class EvidenceGrade(StringEnum):
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
+
+
+class AgentMode(StringEnum):
+    OFFLINE_REPLAY = "OFFLINE_REPLAY"
+    LIVE = "LIVE"
+
+
+class DemoScenarioId(StringEnum):
+    GO = "GO"
+    PIVOT_PRICE = "PIVOT_PRICE"
+    PIVOT_DESIGN = "PIVOT_DESIGN"
+    NO_GO = "NO_GO"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    INVALID_EXPERIMENT = "INVALID_EXPERIMENT"
+    SUPPLY_CONSTRAINT = "SUPPLY_CONSTRAINT"
+    CONFLICTING_SIGNALS = "CONFLICTING_SIGNALS"
