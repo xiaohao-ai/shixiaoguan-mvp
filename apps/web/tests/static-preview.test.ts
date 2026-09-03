@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetStaticPreviewStore, staticPreviewReportHtml } from "@/lib/static-preview";
-import type { ApprovalRequest, DecisionOutcome } from "@/lib/types";
+import type { ApprovalRequest, DecisionOutcome, ProjectDetail } from "@/lib/types";
 
 async function staticApi() {
   vi.stubEnv("NEXT_PUBLIC_STATIC_PREVIEW", "1");
@@ -67,6 +67,22 @@ describe("GitHub Pages browser-local preview", () => {
     expect(analysis.decision?.reason_codes).toEqual(["VARIANT_DIVERGENCE", "MODIFIABLE_DESIGN_VARIABLE"]);
 
     await api.submitApproval(project.id, approval("DECISION", analysis.decision?.version ?? 0));
+    const approvedProject = await api.getProject(project.id);
+    expect(approvedProject.decision?.approval_status).toBe("APPROVED");
+    expect(approvedProject.decision_card?.approval_status).toBe("APPROVED");
+    expect(approvedProject.artifacts?.decision?.approval_status).toBe("APPROVED");
+
+    const persisted = JSON.parse(
+      window.localStorage.getItem("shixiaoguan.github-pages-preview.v1") ?? "{}",
+    ) as { project?: ProjectDetail };
+    if (persisted.project?.decision) persisted.project.decision.approval_status = "PENDING";
+    if (persisted.project?.decision_card) persisted.project.decision_card.approval_status = "PENDING";
+    window.localStorage.setItem("shixiaoguan.github-pages-preview.v1", JSON.stringify(persisted));
+    await expect(api.getProject(project.id)).resolves.toMatchObject({
+      decision: { approval_status: "APPROVED" },
+      decision_card: { approval_status: "APPROVED" },
+    });
+
     const revision = await api.generatePivotRevision(analysis.decision?.id ?? "");
     expect(revision).toMatchObject({ target_variant_id: "COLOR-IVORY", approval_status: "PENDING" });
     await api.approvePivotRevision(revision.id, approval("PIVOT_REVISION", revision.version));

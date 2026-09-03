@@ -87,6 +87,9 @@ test("GitHub Pages 子路径完成 PIVOT_DESIGN 主闭环并支持深链刷新",
   await expect(page.getByText("支持证据", { exact: true })).toBeVisible();
   await expect(page.getByText("命中的规则原因", { exact: true })).toBeVisible();
   await expect(page.getByText("这是一项可审计建议，不是自动执行指令。", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await expect(page.getByText("审批已记录，流程可以继续。", { exact: true })).toBeVisible();
+  await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
 
   const directDecisionUrl = previewPath(`projects/${PROJECT_ID}/decision/`);
   const deepLinkResponse = await page.goto(directDecisionUrl);
@@ -98,6 +101,22 @@ test("GitHub Pages 子路径完成 PIVOT_DESIGN 主闭环并支持深链刷新",
   await expect(
     page.getByText(/GitHub Pages 浏览器内静态回放 · 无 FastAPI \/ SQLite \/ DeepSeek/),
   ).toBeVisible();
+
+  await projectSteps.getByRole("link", { name: /^工厂交接/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${BASE_PATH}/projects/${PROJECT_ID}/handoff/?$`));
+  await expect(page.getByText("当前决策已批准", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "生成 Pivot 修订草稿", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "PivotRevision v1", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "人工批准", exact: true }).click();
+  await expect(page.getByText("修订方案已针对精确版本批准，可生成条件式打样与首单情景草稿。", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "确认当前版本假设", exact: true }).click();
+  await expect(page.getByText(/已于.*确认 Brief v1/)).toBeVisible();
+  await page.getByRole("button", { name: "生成条件式交接", exact: true }).click();
+  await expect(page.getByText("条件式交接草稿已生成。", { exact: true })).toBeVisible();
+  await expect(page.getByText("条件式情景 · 需复测 · 非生产指令", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "复测任务草稿" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "首单三情景" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /TechPack/i })).toHaveCount(0);
 
   await projectSteps.getByRole("link", { name: /^审计回放/ }).click();
   await expect(page).toHaveURL(new RegExp(`${BASE_PATH}/projects/${PROJECT_ID}/audit/?$`));

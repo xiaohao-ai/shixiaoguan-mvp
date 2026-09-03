@@ -67,6 +67,13 @@ function browserStorage(): Storage | undefined {
   }
 }
 
+function normalizePersistedDecisionAliases(project: ProjectDetail): void {
+  const canonical = project.artifacts?.decision ?? project.artifacts?.decision_card;
+  if (!canonical) return;
+  project.decision = canonical;
+  project.decision_card = canonical;
+}
+
 function loadState(): StaticPreviewState | undefined {
   const storage = browserStorage();
   if (storage) {
@@ -75,6 +82,7 @@ function loadState(): StaticPreviewState | undefined {
       if (raw) {
         const parsed = JSON.parse(raw) as StaticPreviewState;
         if (parsed.version === STORE_VERSION && parsed.project?.id === STATIC_PREVIEW_PROJECT_ID) {
+          normalizePersistedDecisionAliases(parsed.project);
           memoryState = parsed;
           return parsed;
         }
@@ -389,6 +397,10 @@ function submitProjectApproval(state: StaticPreviewState, body: ApprovalRequest)
       throw new StaticPreviewRequestError(409, "证据不足不能批准进入交接。");
     }
     decision.approval_status = status;
+    // Persistence serializes compatibility aliases separately from the
+    // canonical artifact map, so keep every project read path synchronized.
+    state.project.decision = decision;
+    state.project.decision_card = decision;
     targetId = String(decision.id);
     setWorkflow(state.project, body.decision === "APPROVE" ? "DECISION_APPROVED" : "DECISION_PROPOSED");
   } else {
