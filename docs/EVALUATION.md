@@ -277,3 +277,4 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - 同次 run 的 E2E 在实验驳回后短暂同时渲染了父、子两条相同审计提示；审批组件现在先刷新服务端投影，再通知父组件接管持久提示，刷新前后始终只有一条。
 - GO 场景首次执行在 45 秒整体用例上限处超时、重试通过，与 CI 中 `next dev` 按路由冷编译一致。E2E 作业现使用 `http://127.0.0.1:8100/api/v1` 作为构建时 `NEXT_PUBLIC_API_BASE_URL` 先生产构建 Next.js，再由同一启动器以 `next start` 运行；本地 E2E 未指定模式时仍使用 `next dev`，未放宽 Playwright 超时。
 - 修复后验证：前端 38 个单测、ESLint、TypeScript 检查、Next.js 生产构建均通过；Playwright 5 个纵向闭环场景全部通过。按 CI 等价生产路径重新构建后，启动日志确认使用 `next start`，5 个场景在 6.4 秒内通过；构建产物包含预期的 `http://127.0.0.1:8100/api/v1`。本地默认路径的启动日志仍确认使用 `next dev`。
+- 修复提交 `8499782` 的 GitHub Actions run `33712756182` 最终状态为 `Success`：security、backend、frontend、contract、e2e 共 5 个作业全部通过，总耗时 2 分 10 秒。页面仍有 Actions 依赖内部 Node.js 20 运行时弃用警告，但没有失败检查。
