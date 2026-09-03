@@ -1463,6 +1463,16 @@ export interface components {
         /** HealthResponse */
         HealthResponse: {
             agent_mode: components["schemas"]["AgentMode"];
+            /**
+             * Attachment Upload Enabled
+             * @default true
+             */
+            attachment_upload_enabled: boolean;
+            /**
+             * Public Preview Mode
+             * @default false
+             */
+            public_preview_mode: boolean;
             /** Service */
             service: string;
             /** Status */

@@ -23,7 +23,7 @@ import { z } from "zod";
 type ApiHealthResponse = components["schemas"]["HealthResponse"];
 
 export const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1"
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1"
 ).replace(/\/$/, "");
 
 export class ApiError extends Error {

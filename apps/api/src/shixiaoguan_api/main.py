@@ -6,10 +6,11 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, File, Form, Header, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from . import __version__
 from .agent import AgentAdapter, ReplayMissError, configured_agent_mode
@@ -25,6 +26,12 @@ from .enums import ApprovalGate, DemoScenarioId, ProjectStatus
 from .idempotency import IdempotencyMiddleware
 from .policy import DEFAULT_POLICY, DemoPolicy
 from .reporting import render_report
+from .runtime_config import (
+    enforce_public_preview_environment,
+    public_preview_enabled,
+    resolve_database_url,
+    resolve_upload_root,
+)
 from .schemas import (
     AgentRunSummary,
     AnalysisBundle,
@@ -117,6 +124,32 @@ def require_idempotency_key(
 WRITE_DEPENDENCY = [Depends(require_idempotency_key)]
 
 
+class PublicPreviewBoundaryMiddleware:
+    """Reject disabled multipart uploads before FastAPI reads the request body."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path_parts = str(scope.get("path", "")).strip("/").split("/")
+        attachment_upload = (
+            scope.get("type") == "http"
+            and scope.get("method") == "POST"
+            and len(path_parts) == 5
+            and path_parts[:3] == ["api", "v1", "projects"]
+            and path_parts[4] == "attachments"
+        )
+        if attachment_upload:
+            response = JSONResponse(
+                status_code=403,
+                content={"detail": "attachment uploads are disabled in public preview mode"},
+                headers={"Cache-Control": "no-store"},
+            )
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+
 def _artifact_or_404(project: ProjectDetail, name: str) -> object:
     artifact = getattr(project.artifacts, name)
     if artifact is None:
@@ -132,22 +165,17 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "单编排 Agent + 确定性质检/指标/四态规则 + 人工审批。所有 Demo 数据均标记为 SYNTHETIC。"
         ),
     )
-    url = (
-        database_url
-        or os.getenv("DATABASE_URL")
-        or os.getenv("SHIXIAOGUAN_DATABASE_URL")
-        or _default_database_url()
-    )
+    preview_mode = public_preview_enabled()
+    enforce_public_preview_environment()
+    url = resolve_database_url(database_url, _default_database_url())
     database = Database(url)
     alembic_config = Path(__file__).resolve().parents[2] / "alembic.ini"
     database.migrate(str(alembic_config))
     app.state.database = database
     app.state.agent_adapter = AgentAdapter()
-    upload_root = Path(
-        os.getenv("UPLOAD_DIR")
-        or os.getenv("SHIXIAOGUAN_UPLOAD_DIR")
-        or (Path(__file__).resolve().parents[2] / "var" / "uploads")
-    ).resolve()
+    app.state.public_preview_mode = preview_mode
+    app.state.attachment_upload_enabled = not preview_mode
+    upload_root = resolve_upload_root(Path(__file__).resolve().parents[2] / "var" / "uploads")
     upload_root.mkdir(parents=True, exist_ok=True)
     app.state.upload_root = upload_root
 
@@ -157,6 +185,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
         or "http://localhost:3000,http://127.0.0.1:3000"
     )
     origins = [value.strip() for value in configured_origins.split(",") if value.strip()]
+    app.add_middleware(IdempotencyMiddleware)
+    if preview_mode:
+        app.add_middleware(PublicPreviewBoundaryMiddleware)
+    # FastAPI prepends each middleware. Register CORS last so it wraps early
+    # public-preview rejections as well as normal route responses.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -164,7 +197,6 @@ def create_app(database_url: str | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Idempotency-Key", "If-Match-Version"],
     )
-    app.add_middleware(IdempotencyMiddleware)
 
     @app.exception_handler(NotFoundError)
     async def not_found_handler(_: Request, exc: NotFoundError) -> JSONResponse:
@@ -201,6 +233,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
             service="shixiaoguan-api",
             version=__version__,
             agent_mode=configured_agent_mode(),
+            public_preview_mode=preview_mode,
+            attachment_upload_enabled=not preview_mode,
         )
 
     @app.get("/api/v1/policy", response_model=DemoPolicy, tags=["policy"])
@@ -282,10 +316,16 @@ def create_app(database_url: str | None = None) -> FastAPI:
     )
     async def post_attachment(
         project_id: str,
+        request: Request,
         session: SessionDependency,
         file: Annotated[UploadFile, File()],
         rights_declaration: Annotated[str, Form(min_length=1, max_length=2000)],
     ) -> Attachment:
+        if not request.app.state.attachment_upload_enabled:
+            raise HTTPException(
+                status_code=403,
+                detail="attachment uploads are disabled in public preview mode",
+            )
         # Resolve the parent first so invalid projects never create files.
         parent = project_detail(session, project_id)
         if parent.status == ProjectStatus.ARCHIVED:

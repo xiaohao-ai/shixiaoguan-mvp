@@ -16,6 +16,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .enums import AgentMode, DecisionOutcome
+from .runtime_config import public_preview_enabled
 from .schemas import (
     AgentBriefNormalization,
     AgentDecisionNarrative,
@@ -411,6 +412,8 @@ def requested_model_mode() -> str:
 
 
 def configured_agent_mode() -> AgentMode:
+    if public_preview_enabled():
+        return AgentMode.OFFLINE_REPLAY
     requested = requested_model_mode()
     if requested == "replay":
         return AgentMode.OFFLINE_REPLAY
@@ -484,6 +487,8 @@ class AgentAdapter:
         )
         client: Any | None = None
         try:
+            if public_preview_enabled():
+                raise RuntimeError("live model access is disabled in public preview mode")
             from agents import (
                 Agent,
                 ModelSettings,

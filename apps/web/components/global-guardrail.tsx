@@ -1,10 +1,10 @@
 "use client";
 
-import { Bot, FlaskConical, ShieldAlert, Wifi, WifiOff } from "lucide-react";
+import { Bot, Cloud, FlaskConical, ShieldAlert, Wifi, WifiOff } from "lucide-react";
 import { useApiStatus } from "@/components/providers";
 
 export function GlobalGuardrail() {
-  const { state, agentMode } = useApiStatus();
+  const { state, agentMode, publicPreviewMode } = useApiStatus();
 
   return (
     <div className="guardrail" aria-label="演示环境状态">
@@ -17,6 +17,12 @@ export function GlobalGuardrail() {
           <ShieldAlert aria-hidden="true" className="size-3.5" />
           非生产指令 · 不会自动投放、下单或打样
         </span>
+        {publicPreviewMode ? (
+          <span className="guardrail__notice">
+            <Cloud aria-hidden="true" className="size-3.5" />
+            公开预览 · 临时数据会重置 · 请勿输入真实业务信息
+          </span>
+        ) : null}
       </div>
       <div className="guardrail__status">
         <span className="model-mode" aria-live="polite">

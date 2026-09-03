@@ -1806,6 +1806,16 @@
           "agent_mode": {
             "$ref": "#/components/schemas/AgentMode"
           },
+          "attachment_upload_enabled": {
+            "default": true,
+            "title": "Attachment Upload Enabled",
+            "type": "boolean"
+          },
+          "public_preview_mode": {
+            "default": false,
+            "title": "Public Preview Mode",
+            "type": "boolean"
+          },
           "service": {
             "title": "Service",
             "type": "string"

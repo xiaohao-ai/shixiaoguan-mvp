@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError } from "@/lib/api";
+import { API_BASE_URL, api, ApiError } from "@/lib/api";
 import type { DemoPolicy } from "@/lib/types";
 
 const policy: DemoPolicy = {
@@ -41,6 +41,10 @@ afterEach(() => {
 });
 
 describe("API client contracts", () => {
+  it("uses the same-origin API path unless a build-time override is supplied", () => {
+    expect(API_BASE_URL).toBe("/api/v1");
+  });
+
   it("adds a unique idempotency key to write requests", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "project-1", status: "PLAN_PROPOSED" }), {

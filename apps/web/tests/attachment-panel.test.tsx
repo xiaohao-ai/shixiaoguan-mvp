@@ -7,10 +7,15 @@ const mocks = vi.hoisted(() => ({
   listAttachments: vi.fn(),
   uploadAttachment: vi.fn(),
   project: undefined as { status?: string; workflow_state?: string } | undefined,
+  attachmentUploadEnabled: true,
 }));
 
 vi.mock("@/components/project-context", () => ({
   useProject: () => ({ projectId: "project-1", project: mocks.project }),
+}));
+
+vi.mock("@/components/providers", () => ({
+  useApiStatus: () => ({ attachmentUploadEnabled: mocks.attachmentUploadEnabled }),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -40,6 +45,7 @@ beforeEach(() => {
   mocks.listAttachments.mockResolvedValue([]);
   mocks.uploadAttachment.mockResolvedValue(attachment);
   mocks.project = undefined;
+  mocks.attachmentUploadEnabled = true;
 });
 
 describe("image attachment gate", () => {
@@ -104,6 +110,18 @@ describe("image attachment gate", () => {
     expect(screen.getByLabelText("图片权属声明")).toBeDisabled();
     expect(screen.getByRole("button", { name: /上传并记录权属/ })).toBeDisabled();
     expect(screen.getByText(/现有图片可查看，但不能再上传附件/)).toBeInTheDocument();
+    expect(mocks.uploadAttachment).not.toHaveBeenCalled();
+  });
+
+  it("disables attachment input in the public preview", async () => {
+    mocks.attachmentUploadEnabled = false;
+    render(<AttachmentPanel />);
+    await screen.findByText(/尚未上传项目图片/);
+
+    expect(screen.getByLabelText("图片文件")).toBeDisabled();
+    expect(screen.getByLabelText("图片权属声明")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /上传并记录权属/ })).toBeDisabled();
+    expect(screen.getByText(/公开预览只接受合成数据/)).toBeInTheDocument();
     expect(mocks.uploadAttachment).not.toHaveBeenCalled();
   });
 });

@@ -45,6 +45,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:runtime-env
+      - run: pnpm test:preview-runtime
+      - run: pnpm test:preview-server
       - run: pnpm --dir apps/web lint
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web typecheck
@@ -70,6 +72,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:contract
 
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build platform-neutral public preview image
+        run: docker build --tag shixiaoguan-preview:ci .
+      - name: Verify same-origin health and public-preview guardrails
+        run: |
+          docker run --detach --name shixiaoguan-preview-ci --publish 127.0.0.1:3000:3000 shixiaoguan-preview:ci
+          trap 'docker logs shixiaoguan-preview-ci; docker rm --force shixiaoguan-preview-ci >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/api/v1/health > /tmp/preview-health.json; then
+              break
+            fi
+            sleep 1
+          done
+          node -e 'const fs = require("node:fs"); const body = JSON.parse(fs.readFileSync("/tmp/preview-health.json", "utf8")); if (body.agent_mode !== "OFFLINE_REPLAY" || body.public_preview_mode !== true || body.attachment_upload_enabled !== false) process.exit(1)'
+          test "$(curl --silent --output /tmp/preview-upload.json --write-out '%{http_code}' --request POST http://127.0.0.1:3000/api/v1/projects/not-used/attachments)" = "403"
+          docker stop --time 10 shixiaoguan-preview-ci
+
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -88,13 +110,10 @@ jobs:
           cache: pnpm
       - run: uv sync --directory apps/api --locked --dev
       - run: pnpm install --frozen-lockfile
-      - name: Build web for the E2E API origin
+      - name: Build web with the same-origin API path
         run: pnpm --dir apps/web build
-        env:
-          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100/api/v1
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
       - name: Run E2E against the production web server
         run: pnpm test:e2e
         env:
           E2E_WEB_SERVER_MODE: production
-          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100/api/v1

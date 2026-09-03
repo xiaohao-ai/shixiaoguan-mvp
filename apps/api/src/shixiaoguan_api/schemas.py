@@ -642,6 +642,8 @@ class HealthResponse(APIModel):
     service: str
     version: str
     agent_mode: AgentMode
+    public_preview_mode: bool = False
+    attachment_upload_enabled: bool = True
 
 
 class ErrorDetail(APIModel):

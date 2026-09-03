@@ -76,6 +76,7 @@
 - 状态：只有 `workflow_state`、`quality_status`、`decision_outcome` 三个核心正交维度；审批是版本化 Gate 记录。
 - 证据：每条陈述分别记录 `statement_type`、`inference_strength`、`evidence_grade`；合成数据的证据等级最高为 B、推断强度最高为 `ASSOCIATIONAL`，且不得形成真实市场因果主张。
 - 分类优先级：质量阻断 Evidence Insufficient→冲突信号 Evidence Insufficient→明确低需求 No-Go→不可修改约束 No-Go→恰好一个可修改失败 Pivot→全部通过 Go→其他 Evidence Insufficient。明确低需求不能被轻微经营约束升级为 Pivot，多个可修改失败也不能合并成 Pivot。
+- 开源与预览：GitHub 仓库 `xiaohao-ai/shixiaoguan-mvp` 采用 MIT 许可证公开；线上只提供 Render Free Singapore 单容器的可重置合成 Demo。公开预览强制离线回放、不配置模型 Key、禁用附件并使用临时 SQLite，所有访客都必须按公开共享环境对待，禁止输入真实企业或个人信息。
 
 ## 4. 为什么优先做这个方向
 

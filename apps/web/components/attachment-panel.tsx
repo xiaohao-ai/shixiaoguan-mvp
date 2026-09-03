@@ -2,6 +2,7 @@
 
 import { FileImage, ShieldCheck, Upload } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useApiStatus } from "@/components/providers";
 import { useProject } from "@/components/project-context";
 import { ActionMessage, Button, SectionHeading, StatusPill, Surface } from "@/components/ui";
 import { api, attachmentContentUrl, getErrorMessage } from "@/lib/api";
@@ -22,7 +23,10 @@ export function validateAttachment(file: File | undefined, rightsDeclaration: st
 
 export function AttachmentPanel() {
   const { projectId, project } = useProject();
+  const { attachmentUploadEnabled } = useApiStatus();
   const archived = (project?.workflow_state ?? project?.status) === "ARCHIVED";
+  const previewUploadDisabled = attachmentUploadEnabled === false;
+  const uploadDisabled = archived || previewUploadDisabled;
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [file, setFile] = useState<File>();
   const [rightsDeclaration, setRightsDeclaration] = useState("");
@@ -47,6 +51,10 @@ export function AttachmentPanel() {
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (previewUploadDisabled) {
+      setMessage({ tone: "info", text: "公开预览已关闭附件上传；请在本地环境测试自有图片。" });
+      return;
+    }
     if (archived) {
       setMessage({ tone: "info", text: "项目已归档，附件入口只读。" });
       return;
@@ -78,7 +86,12 @@ export function AttachmentPanel() {
       <SectionHeading
         title="产品图片与权属"
         description="图片只用于上传、展示和记录权属；MVP 不做自动识图、趋势检索或相似款分析。"
-        action={<StatusPill tone="warn"><ShieldCheck className="size-3.5" /> 权属必填</StatusPill>}
+        action={(
+          <StatusPill tone="warn">
+            <ShieldCheck className="size-3.5" />
+            {previewUploadDisabled ? "公开预览 · 上传关闭" : "权属必填"}
+          </StatusPill>
+        )}
       />
 
       <form className="attachment-upload" onSubmit={(event) => void submit(event)} noValidate>
@@ -88,7 +101,7 @@ export function AttachmentPanel() {
             id="product-attachment"
             className="input file-input"
             type="file"
-            disabled={archived}
+            disabled={uploadDisabled}
             accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
             onChange={(event) => {
               setFile(event.target.files?.[0]);
@@ -103,7 +116,7 @@ export function AttachmentPanel() {
             id="rights-declaration"
             className="textarea"
             value={rightsDeclaration}
-            disabled={archived}
+            disabled={uploadDisabled}
             maxLength={2000}
             placeholder="例：本图由本项目自制，授权用于本次合成 Demo 展示。"
             onChange={(event) => {
@@ -113,12 +126,17 @@ export function AttachmentPanel() {
           />
         </div>
         <div className="attachment-upload__action">
-          <Button type="submit" loading={uploading} disabled={archived}>
+          <Button type="submit" loading={uploading} disabled={uploadDisabled}>
             <Upload className="size-4" /> 上传并记录权属
           </Button>
         </div>
       </form>
 
+      {previewUploadDisabled ? (
+        <ActionMessage tone="info">
+          公开预览只接受合成数据，不保存访客附件；请勿输入真实企业信息。
+        </ActionMessage>
+      ) : null}
       {archived ? <ActionMessage tone="info">项目已归档；现有图片可查看，但不能再上传附件。</ActionMessage> : null}
 
       {message ? <ActionMessage tone={message.tone}>{message.text}</ActionMessage> : null}

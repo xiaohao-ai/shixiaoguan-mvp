@@ -31,6 +31,8 @@ describe("GlobalGuardrail", () => {
           service: "shixiaoguan-api",
           version: "0.1.0",
           agent_mode: "OFFLINE_REPLAY",
+          public_preview_mode: true,
+          attachment_upload_enabled: false,
         }),
       }),
     );
@@ -41,5 +43,6 @@ describe("GlobalGuardrail", () => {
     );
     expect(await screen.findByText("离线回放")).toBeInTheDocument();
     expect(screen.getByText("API 在线")).toBeInTheDocument();
+    expect(screen.getByText(/公开预览 · 临时数据会重置/)).toBeInTheDocument();
   });
 });

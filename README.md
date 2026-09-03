@@ -39,6 +39,17 @@ pnpm dev
 
 `.env.example` 默认使用 `MODEL_MODE=replay`，因此没有 DeepSeek API Key 也能完成已录制的核心演示。在线模式使用 DeepSeek 的 OpenAI 兼容 Responses API，默认模型为 `deepseek-v4-flash`：把密钥只写入本地、已被 Git 忽略的 `.env` 中，将 `MODEL_MODE` 改为 `live` 或 `auto` 并设置 `DEEPSEEK_API_KEY`。`DEEPSEEK_BASE_URL` 默认是 `https://api.deepseek.com`；仅有旧 `OPENAI_API_KEY` 不会启用在线模式。根启动器只把 `DEEPSEEK_API_KEY` 注入 API 子进程环境，不向任一子进程注入遗留 `OPENAI_API_KEY`，也不向 Web 子进程注入模型凭据；若误设 `NEXT_PUBLIC_DEEPSEEK_API_KEY` 或 `NEXT_PUBLIC_OPENAI_API_KEY` 会拒绝启动。密钥不会写入数据库、报告或 Git。
 
+## 开源与线上预览
+
+本项目采用 [MIT License](./LICENSE) 开源，贡献方式与安全报告边界见 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。线上产品预览使用 Render Free 的单 Docker Web Service；容器只向公网暴露 Next.js 的 `$PORT`，浏览器通过同域 `/api/v1` 访问由 Next.js 代理、仅监听容器回环地址的 FastAPI。`render.yaml` 将部署区域固定为 Singapore，并只在 `main` 的检查通过后自动部署。
+
+```bash
+docker build -t shixiaoguan-preview .
+docker run --rm -p 3000:3000 -e PORT=3000 shixiaoguan-preview
+```
+
+本地打开 <http://127.0.0.1:3000>，同域健康检查为 <http://127.0.0.1:3000/api/v1/health>。线上免费域名会在首次部署成功后列在本节顶部。该镜像固定启用 `PUBLIC_PREVIEW_MODE`：强制离线回放、移除 DeepSeek/OpenAI 凭据、禁用附件上传，并把 SQLite 与上传目录放入每次启动独立的系统临时目录。免费实例会休眠，重启或重新部署会丢弃预览状态；不要输入企业资料、个人信息或其他敏感数据。容器入口使用一个 Uvicorn worker、无热重载，并把平台 `SIGTERM` 转发给 Web/API 后再清理临时目录。
+
 ## 推荐 Demo 路径
 
 1. 在首页选择 `PIVOT_DESIGN`，创建预置男士轻量休闲鞋项目。
@@ -73,6 +84,8 @@ python3 -m uv --directory apps/api run pytest
 
 `pnpm check` 包含前后端 lint、类型检查、单元/集成测试、生产构建与 OpenAPI 契约漂移检查。CI 的黄金回归不调用付费模型；在线模型契约测试属于显式启用的受控检查。
 
+CI 还会构建上述容器，并通过同域健康接口验证 Web、代理和 API 全链路以及公开预览安全标志。
+
 ## 目录
 
 ```text
@@ -94,4 +107,4 @@ docs/DATA_DICTIONARY.md   对象、枚举、字段和 DemoPolicy
 - 所有外部发布、投放、下单、打样和生产动作都必须在系统外由人确认；应用仅生成草稿与三个离散情景点（整体形成情景范围）。
 - `SYNTHETIC` 证据最高为 B，推断强度最高展示为 `ASSOCIATIONAL`。
 
-私有远程仓库：<https://github.com/xiaohao-ai/shixiaoguan-mvp>
+开源仓库：<https://github.com/xiaohao-ai/shixiaoguan-mvp>
