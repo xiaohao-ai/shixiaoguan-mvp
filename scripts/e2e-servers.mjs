@@ -5,6 +5,14 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const webServerMode = process.env.E2E_WEB_SERVER_MODE ?? "development";
+
+if (!["development", "production"].includes(webServerMode)) {
+  throw new Error(
+    `Unsupported E2E_WEB_SERVER_MODE=${webServerMode}; expected development or production.`,
+  );
+}
+
 const runtimeRoot = mkdtempSync(join(tmpdir(), "shixiaoguan-e2e-"));
 const databasePath = join(runtimeRoot, "e2e.sqlite3");
 const children = new Set();
@@ -94,7 +102,13 @@ await waitUntilReady("http://127.0.0.1:8100/api/v1/health");
 
 launch(
   "pnpm",
-  ["--dir", "apps/web", "dev", "--port", "3100"],
+  [
+    "--dir",
+    "apps/web",
+    webServerMode === "production" ? "start" : "dev",
+    "--port",
+    "3100",
+  ],
   { NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8100/api/v1" },
 );
 

@@ -88,5 +88,13 @@ jobs:
           cache: pnpm
       - run: uv sync --directory apps/api --locked --dev
       - run: pnpm install --frozen-lockfile
+      - name: Build web for the E2E API origin
+        run: pnpm --dir apps/web build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100/api/v1
       - run: pnpm --dir apps/web exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - name: Run E2E against the production web server
+        run: pnpm test:e2e
+        env:
+          E2E_WEB_SERVER_MODE: production
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100/api/v1

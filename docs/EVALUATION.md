@@ -270,3 +270,10 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - D-039 落地后以根命令冷启动验证：API `/api/v1/health` 返回 `agent_mode=LIVE`，Web 首页返回 HTTP 200；该检查只验证配置识别和双进程可启动，未额外触发付费模型调用。
 
 以上只是一次连通性与契约冒烟，不代表 20 例在线验收、性能基准或真实业务效果；这些结论不得对外扩写为模型准确率。
+
+### 2026-09-03 前端 CI 竞态回归
+
+- GitHub Actions run `33709408659` 的前端单测在重置场景中只等待 API 函数开始调用，就立即断言异步完成提示；回归测试改为等待用户可见的完成状态，未放宽超时。
+- 同次 run 的 E2E 在实验驳回后短暂同时渲染了父、子两条相同审计提示；审批组件现在先刷新服务端投影，再通知父组件接管持久提示，刷新前后始终只有一条。
+- GO 场景首次执行在 45 秒整体用例上限处超时、重试通过，与 CI 中 `next dev` 按路由冷编译一致。E2E 作业现使用 `http://127.0.0.1:8100/api/v1` 作为构建时 `NEXT_PUBLIC_API_BASE_URL` 先生产构建 Next.js，再由同一启动器以 `next start` 运行；本地 E2E 未指定模式时仍使用 `next dev`，未放宽 Playwright 超时。
+- 修复后验证：前端 38 个单测、ESLint、TypeScript 检查、Next.js 生产构建均通过；Playwright 5 个纵向闭环场景全部通过。按 CI 等价生产路径重新构建后，启动日志确认使用 `next start`，5 个场景在 6.4 秒内通过；构建产物包含预期的 `http://127.0.0.1:8100/api/v1`。本地默认路径的启动日志仍确认使用 `next dev`。

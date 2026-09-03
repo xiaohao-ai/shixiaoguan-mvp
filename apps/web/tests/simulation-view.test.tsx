@@ -107,10 +107,10 @@ describe("simulation replay controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "重置并重放" }));
 
-    await waitFor(() => expect(mocks.resetSimulationReplay).toHaveBeenCalledWith("project-1"));
+    expect(await screen.findByText(/旧数据集已标记为非活跃/)).toBeInTheDocument();
+    expect(mocks.resetSimulationReplay).toHaveBeenCalledWith("project-1");
     expect(mocks.refresh).toHaveBeenCalled();
     expect(mocks.getObservations).toHaveBeenCalledTimes(2);
-    expect(screen.getByText(/旧数据集已标记为非活跃/)).toBeInTheDocument();
   });
 
   it("does not expose replay reset after decision approval", async () => {

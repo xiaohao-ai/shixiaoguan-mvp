@@ -67,8 +67,8 @@ export function ApprovalPanel({
             ? "审批已记录，流程可以继续。"
             : "处理意见已写入审计记录。",
       });
-      onSubmitted?.(decision);
       await refresh();
+      onSubmitted?.(decision);
     } catch (caught) {
       setMessage({ tone: "error", text: getErrorMessage(caught) });
     } finally {
