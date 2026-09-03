@@ -366,6 +366,7 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
 
     assert narrative.generated_by == "live-agent"
     assert execution.mode == AgentMode.LIVE
+    assert execution.reasoning_effort == "none"
     assert len(captured_agents) == 1
     assert captured_agents[0]["model"].model == "deepseek-v4-flash"  # type: ignore[union-attr]
     assert captured_agents[0]["model_settings"]["tool_choice"] == (  # type: ignore[index]
@@ -373,7 +374,7 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     )
     assert captured_agents[0]["model_settings"]["store"] is False  # type: ignore[index]
     assert captured_agents[0]["model_settings"]["reasoning"] == {  # type: ignore[index]
-        "effort": "low"
+        "effort": "none"
     }
     assert captured_agents[0]["model_settings"]["timeout"] == 25  # type: ignore[index]
     assert captured_clients[0].api_key == "test-key-not-used"
@@ -405,6 +406,9 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     assert captured_agents[-1]["tools"] == []
     assert captured_agents[-1]["handoffs"] == []
     assert captured_agents[-1]["model_settings"]["tool_choice"] is None  # type: ignore[index]
+    assert captured_agents[-1]["model_settings"]["reasoning"] == {  # type: ignore[index]
+        "effort": "low"
+    }
     assert all(client.closed for client in captured_clients)
 
 
@@ -457,7 +461,7 @@ def test_installed_sdk_serializes_deepseek_responses_contract() -> None:
                     "input",
                     ModelSettings(
                         store=False,
-                        reasoning={"effort": "low"},
+                        reasoning={"effort": "none"},
                         tool_choice="read_locked_decision_evidence",
                     ),
                     [evidence_tool],
@@ -485,7 +489,6 @@ def test_installed_sdk_serializes_deepseek_responses_contract() -> None:
         assert (method, path) == ("POST", "/responses")
         assert body["model"] == "deepseek-v4-flash"
         assert body["store"] is False
-        assert body["reasoning"] == {"effort": "low"}
         assert body["text"]["format"]["type"] == "json_schema"  # type: ignore[index]
         assert body["text"]["format"]["strict"] is True  # type: ignore[index]
         assert "previous_response_id" not in body
@@ -493,6 +496,7 @@ def test_installed_sdk_serializes_deepseek_responses_contract() -> None:
         assert "test-key-not-a-secret" not in json.dumps(body)
 
     tool_body = captured_requests[0][2]
+    assert tool_body["reasoning"] == {"effort": "none"}
     assert tool_body["tool_choice"] == {
         "type": "function",
         "name": "read_locked_decision_evidence",
@@ -506,5 +510,6 @@ def test_installed_sdk_serializes_deepseek_responses_contract() -> None:
     assert tool_body["tools"][0]["parameters"]["properties"] == {}  # type: ignore[index]
 
     no_tool_body = captured_requests[1][2]
+    assert no_tool_body["reasoning"] == {"effort": "low"}
     assert no_tool_body["tools"] == []
     assert "tool_choice" not in no_tool_body

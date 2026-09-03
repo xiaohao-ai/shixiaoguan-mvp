@@ -534,7 +534,7 @@ Agent 必须具备以下三类能力：
 
 能够识别鞋服场景中的价格、材料、颜色尺码、MOQ、打样、交期等约束，并在信息不足时提出问题。
 
-在线模式通过 DeepSeek 的 OpenAI 兼容 Responses API，默认使用 `deepseek-v4-flash` 和低推理强度；仅从 `DEEPSEEK_API_KEY` 取在线凭据，模型、Base URL、推理强度、超时和结构修复次数均使用 `DEEPSEEK_*` 环境变量配置。输出必须通过 Pydantic/JSON Schema 校验。离线模式只能按 `(input_sha256, prompt_version, output_schema_version)` 精确匹配固定录制，并在页面显示 `OFFLINE_REPLAY`；未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态拼接或使用回放回答未录制的自由问题。
+在线模式通过 DeepSeek 的 OpenAI 兼容 Responses API，默认使用 `deepseek-v4-flash`；Brief 归一化和实验文字草案使用 `DEEPSEEK_REASONING_EFFORT`（默认 `low`），决策解释固定使用 `reasoning.effort=none`，以兼容强制命名 `read_locked_decision_evidence` 的协议门禁。仅从 `DEEPSEEK_API_KEY` 取在线凭据，模型、Base URL、默认推理强度、超时和结构修复次数均使用 `DEEPSEEK_*` 环境变量配置。输出必须通过 Pydantic/JSON Schema 校验。离线模式只能按 `(input_sha256, prompt_version, output_schema_version)` 精确匹配固定录制，并在页面显示 `OFFLINE_REPLAY`；未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态拼接或使用回放回答未录制的自由问题。
 
 ### 10.4 能力边界
 

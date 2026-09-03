@@ -27,6 +27,7 @@ from .schemas import (
 DEFAULT_MODEL = "deepseek-v4-flash"
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_REASONING_EFFORT = "low"
+TOOL_REASONING_EFFORT = "none"
 DEFAULT_TIMEOUT_SECONDS = 25.0
 DEFAULT_REPAIR_RETRIES = 1
 
@@ -478,6 +479,9 @@ class AgentAdapter:
     ) -> tuple[T | None, AgentExecution]:
         start = time.monotonic()
         input_hash = _sha256_json(input_payload)
+        effective_reasoning_effort = (
+            TOOL_REASONING_EFFORT if read_only_context is not None else self.reasoning_effort
+        )
         client: Any | None = None
         try:
             from agents import (
@@ -502,7 +506,7 @@ class AgentAdapter:
             parameters = inspect.signature(ModelSettings).parameters
             settings_kwargs: dict[str, Any] = {
                 "store": False,
-                "reasoning": {"effort": self.reasoning_effort},
+                "reasoning": {"effort": effective_reasoning_effort},
                 "timeout": self.timeout_seconds,
             }
             if read_only_context is not None:
@@ -570,7 +574,7 @@ class AgentAdapter:
                     return parsed, AgentExecution(
                         mode=AgentMode.LIVE,
                         model_name=self.model_name,
-                        reasoning_effort=self.reasoning_effort,
+                        reasoning_effort=effective_reasoning_effort,
                         prompt_version=prompt_version,
                         output_schema_version=output_schema_version,
                         recording_id=None,
@@ -590,7 +594,7 @@ class AgentAdapter:
             return None, AgentExecution(
                 mode=AgentMode.LIVE,
                 model_name=self.model_name,
-                reasoning_effort=self.reasoning_effort,
+                reasoning_effort=effective_reasoning_effort,
                 prompt_version=prompt_version,
                 output_schema_version=output_schema_version,
                 recording_id=None,

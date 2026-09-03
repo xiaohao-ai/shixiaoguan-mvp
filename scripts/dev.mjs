@@ -2,40 +2,18 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import process from "node:process";
 
+import { developmentCommands } from "./runtime-env.mjs";
+
 if (existsSync(".env")) {
   process.loadEnvFile(".env");
 }
 
-const commands = [
-  {
-    name: "web",
-    command: "pnpm",
-    args: ["--dir", "apps/web", "dev"],
-  },
-  {
-    name: "api",
-    command: "python3",
-    args: [
-      "-m",
-      "uv",
-      "--directory",
-      "apps/api",
-      "run",
-      "uvicorn",
-      "shixiaoguan_api.main:app",
-      "--reload",
-      "--host",
-      "127.0.0.1",
-      "--port",
-      "8000",
-    ],
-  },
-];
+const commands = developmentCommands(process.env);
 
-const children = commands.map(({ name, command, args }) => {
+const children = commands.map(({ name, command, args, environment }) => {
   const child = spawn(command, args, {
     stdio: ["inherit", "pipe", "pipe"],
-    env: process.env,
+    env: environment,
   });
 
   child.stdout.on("data", (chunk) => process.stdout.write(`[${name}] ${chunk}`));

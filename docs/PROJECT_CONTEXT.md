@@ -71,7 +71,7 @@
 - 数据入口：本轮 P0 仅使用预置场景控制台中固定随机种子生成的每日聚合合成数据；CSV、手工录入和平台 API 均不属于本轮 P0。
 - 来源与敏感性：项目创建和 Brief 更新由服务端强制试销来源为 `SYNTHETIC`；用户图片附件只将独立的 `data_sensitivity_level` 标为 `USER_CONTENT_RESTRICTED`，不能把合成试销观测改称用户或企业数据。
 - Agent：使用 OpenAI Agents SDK 的单一逻辑编排 Agent；Brief 归一化和实验文字草案不挂载工具，只有在线决策解释在该次调用中强制首次调用一个无参数、只读的锁定证据工具。数据校验、指标、四态决策、状态转换、审批和工厂交接均由应用确定性服务直接执行，不是 Agent tools，也不是独立 Agent。
-- 模型：在线供应商改为 DeepSeek，通过其 OpenAI 兼容 Responses API 运行，默认 `deepseek-v4-flash`、低推理强度；只有 `MODEL_MODE=live/auto` 且存在 `DEEPSEEK_API_KEY` 才在线运行，旧 `OPENAI_API_KEY` 不作为回退凭据。否则只按 `(input_sha256, prompt_version, output_schema_version)` 严格命中固定录制，未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态伪造回放。
+- 模型：在线供应商改为 DeepSeek，通过其 OpenAI 兼容 Responses API 运行，默认 `deepseek-v4-flash`；Brief 归一化和实验文字草案使用低推理强度，决策解释为兼容强制命名只读工具使用 `reasoning.effort=none`。只有 `MODEL_MODE=live/auto` 且存在 `DEEPSEEK_API_KEY` 才在线运行，旧 `OPENAI_API_KEY` 不作为回退凭据。否则只按 `(input_sha256, prompt_version, output_schema_version)` 严格命中固定录制，未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态伪造回放。
 - 预测：本轮不训练或运行销量/爆款预测模型，预测指标统一显示为 `N/A`。
 - 状态：只有 `workflow_state`、`quality_status`、`decision_outcome` 三个核心正交维度；审批是版本化 Gate 记录。
 - 证据：每条陈述分别记录 `statement_type`、`inference_strength`、`evidence_grade`；合成数据的证据等级最高为 B、推断强度最高为 `ASSOCIATIONAL`，且不得形成真实市场因果主张。

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,8 +32,23 @@ PATTERNS = {
 
 
 def candidate_files() -> list[Path]:
+    tracked_and_unignored = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if tracked_and_unignored.returncode == 0:
+        candidates = [
+            ROOT / raw.decode("utf-8", errors="surrogateescape")
+            for raw in tracked_and_unignored.stdout.split(b"\0")
+            if raw
+        ]
+    else:
+        candidates = list(ROOT.rglob("*"))
+
     files: list[Path] = []
-    for path in ROOT.rglob("*"):
+    for path in candidates:
         if not path.is_file() or any(part in EXCLUDED_PARTS for part in path.parts):
             continue
         try:

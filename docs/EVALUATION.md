@@ -181,7 +181,7 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - 同一固定输入的关键决策稳定性。
 - 逻辑业务 Agent 角色数（P0 恒为 1）、handoff 数（恒为 0）；SDK 可按结构化任务创建多个短生命周期调用实例，不能把实例数误算成业务 Agent 数；
 - Brief 归一化和实验计划文字调用的工具数为 0；在线 `EXPLAIN_DECISION` 只挂载一个无参数 `read_locked_decision_evidence`，必须以命名 `tool_choice` 首次调用，其返回值仅含应用锁定的类别、原因码、证据和限制；
-- 在线 DeepSeek `deepseek-v4-flash` 低推理模式与 `OFFLINE_REPLAY` 的模式标记正确率；仅设置旧 `OPENAI_API_KEY` 时仍须保持回放，`DEEPSEEK_API_KEY` 不得进入日志、数据库、报告或 Git；
+- 在线 DeepSeek `deepseek-v4-flash` 的模式标记与逐运行推理强度记录正确率：Brief/计划默认 `low`，强制命名工具的决策解释为 `none`；仅设置旧 `OPENAI_API_KEY` 时仍须保持回放，根启动器不得把模型凭据注入 Web 子进程环境、不得把遗留 OpenAI 凭据注入任一子进程，并须拒绝 `NEXT_PUBLIC_*` 模型凭据误配置；Key 不得进入日志、数据库、报告或 Git；
 - 离线回放 `(input_sha256, prompt_version, output_schema_version)` 三元键命中率，以及未命中返回 `422 REPLAY_RECORDING_MISS` 且状态不推进的正确率。
 
 ### MVP 验收
@@ -256,3 +256,17 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 适用边界：
 下一轮改动与是否允许对外引用：
 ```
+
+## 11. 实施验证记录
+
+### 2026-09-03 DeepSeek 单场景在线冒烟
+
+- 仅使用 `GO` 合成场景与本地内存/忽略提交的 Key，未发送原始个人数据；模型为 `deepseek-v4-flash`。
+- `NORMALIZE_BRIEF`：`LIVE`，`reasoning.effort=low`，结构化 Schema 通过；单次 5,942 ms，输入/输出 Token 为 669/535。
+- `GENERATE_PLAN_TEXT`：`LIVE`，`reasoning.effort=low`，结构化 Schema 通过；单次 6,684 ms，输入/输出 Token 为 659/579。
+- 初始 `EXPLAIN_DECISION` 使用 thinking＋指定函数时，DeepSeek 返回 `400 invalid_request_error: Thinking mode does not support this tool_choice`；应用按 D-026 正确降级到精确固定回放，未改变决策或证据引用。
+- 按 D-038 将该操作改为 `reasoning.effort=none` 后，`EXPLAIN_DECISION` 保持 `LIVE`，强制只读工具回合及结构化输出完成；单次 11,088 ms，输入/输出 Token 为 2,627/546，确定性 `GO` 未改变，全部 evidence ID 均来自锁定证据。
+- Key 未出现在命令输出或 Git 跟踪文件中；`AgentExecution`/`AgentRun` 契约不包含 Key 字段，本地 `.env` 以 `0600` 权限保存并被 `.gitignore` 排除。根启动器的命令构造测试另验证 Web 子进程环境会删除模型凭据、API 子进程只保留 DeepSeek 凭据、公开前缀误配置会拒绝启动，且该测试已接入 CI；本次未以 canary 扫描 SQLite 与 HTML 报告，仍保留为安全测试缺口。
+- D-039 落地后以根命令冷启动验证：API `/api/v1/health` 返回 `agent_mode=LIVE`，Web 首页返回 HTTP 200；该检查只验证配置识别和双进程可启动，未额外触发付费模型调用。
+
+以上只是一次连通性与契约冒烟，不代表 20 例在线验收、性能基准或真实业务效果；这些结论不得对外扩写为模型准确率。

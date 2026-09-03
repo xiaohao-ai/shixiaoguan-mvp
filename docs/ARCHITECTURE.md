@@ -275,7 +275,7 @@ GET  /projects/{id}/report
 | Pivot 文案与 HTML 报告 | 原因码映射＋确定性模板 | 保证单变量修订和导出内容可复算 |
 | 预测模型 | P0 不实例化，所有预测指标为 `N/A` | 冷启动阶段不应制造虚假精度 |
 
-在线模式保留 OpenAI Agents SDK 的单一逻辑编排 Agent 角色，不存在 handoff 或子 Agent；适配层将带 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_BASE_URL` 的显式异步客户端注入 Responses 模型适配器，避免 SDK 默认读取 OpenAI 凭据。不同结构化输出任务可以创建短生命周期 SDK 运行对象，但它们不是独立业务 Agent，也不拥有业务状态。在线供应商为 DeepSeek，默认模型为 `deepseek-v4-flash`、`reasoning.effort=low`；官方文档列出 Responses API、JSON Schema 与函数工具兼容能力，实际账户权限、限额和稳定性仍须用受控在线契约测试验证。参考：[DeepSeek API 快速开始](https://api-docs.deepseek.com/)、[DeepSeek Responses API](https://api-docs.deepseek.com/guides/responses_api/)、[OpenAI Agents SDK Quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart)。
+在线模式保留 OpenAI Agents SDK 的单一逻辑编排 Agent 角色，不存在 handoff 或子 Agent；适配层将带 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_BASE_URL` 的显式异步客户端注入 Responses 模型适配器，避免 SDK 默认读取 OpenAI 凭据。不同结构化输出任务可以创建短生命周期 SDK 运行对象，但它们不是独立业务 Agent，也不拥有业务状态。在线供应商为 DeepSeek，默认模型为 `deepseek-v4-flash`；Brief 归一化与实验文字草案使用 `reasoning.effort=low`，决策解释使用 `reasoning.effort=none` 并强制指定唯一只读函数。后者是 2026-09-03 真实 API 冒烟发现“thinking 模式不支持该 `tool_choice`”后的兼容选择，优先保留证据读取门禁而非自由依赖模型是否调用工具。官方文档列出 Responses API、JSON Schema 与函数工具兼容能力，实际账户权限、限额和稳定性仍须用受控在线契约测试验证。参考：[DeepSeek API 快速开始](https://api-docs.deepseek.com/)、[DeepSeek Responses API](https://api-docs.deepseek.com/guides/responses_api/)、[DeepSeek Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)、[OpenAI Agents SDK Models and providers](https://developers.openai.com/api/docs/guides/agents/models)。
 
 单次在线调用超时 25 秒，结构不合法时最多允许一次结构修复重试；仍失败或缺少 `DEEPSEEK_API_KEY` 时切换显式离线回放，并记录失败原因。默认 Base URL 为 `https://api.deepseek.com`；模型 ID 等参数通过 `DEEPSEEK_*` 环境变量配置，旧 `OPENAI_API_KEY` 不会激活在线模式。20 个代表性用例只有在低推理强度不达验收门槛时，才以同一用例评估 `high`；DeepSeek 当前会把 `medium` 映射为 `high`，因此不把二者作为两个独立实验档位。
 
@@ -468,7 +468,7 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 ## 13. 安全与合规
 
 - P0 附件按项目对象键隔离并校验路径；多租户与向量索引不在本轮实现
-- API 密钥仅存放于环境变量或密钥服务
+- API 密钥仅存放于环境变量或密钥服务；本地根启动器从 `.env` 载入后只向 API 子进程环境注入 `DEEPSEEK_API_KEY`，从 Web 子进程环境删除全部已知模型凭据，并从两个子进程环境都删除遗留 `OPENAI_API_KEY`；若发现 `NEXT_PUBLIC_DEEPSEEK_API_KEY` 或 `NEXT_PUBLIC_OPENAI_API_KEY` 则拒绝启动
 - 默认不使用企业数据训练公共模型
 - 向模型发送数据前执行字段最小化和脱敏
 - 对用户上传文档、网页和工具返回内容按“不可信数据”处理，防止 Prompt Injection
@@ -493,7 +493,7 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 - 数据库：SQLite WAL；金额使用整数分并限制在 SQLite 64 位有符号整数范围，计数使用非负整数；Web 表单再限制为 JavaScript 安全整数可换算范围并以两位小数显示
 - 文件存储：本地受控目录保存图片；数据库保存附件元数据、SHA-256 与相对对象键。HTML 报告按请求从当前投影和审计记录渲染，试销快照保存在 SQLite 记录中
 - Agent：OpenAI Agents SDK（Python）的单一逻辑编排 Agent 角色；各次结构化调用可创建短生命周期 SDK 实例，流程转移仍由应用层确定性状态机管理，不使用多 Agent handoff
-- 模型：在线 DeepSeek `deepseek-v4-flash`，`reasoning.effort=low`，经 OpenAI 兼容 Responses API 适配；离线为录制回放适配器
+- 模型：在线 DeepSeek `deepseek-v4-flash`，Brief/计划为 `reasoning.effort=low`、强制工具的决策解释为 `none`，经 OpenAI 兼容 Responses API 适配；离线为录制回放适配器
 - API 契约：Pydantic 是唯一后端 Schema 来源，FastAPI 输出 OpenAPI，并生成前端 TypeScript 类型；CI 检查契约漂移
 - 向量检索：本轮不引入，后续有授权商品库时再选型
 - 报告导出：响应式 HTML 与浏览器打印样式；本轮不生成原生 PDF
