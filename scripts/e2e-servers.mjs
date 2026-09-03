@@ -83,6 +83,7 @@ launch(
     // transaction behavior as the local app without touching developer data.
     DATABASE_URL: `sqlite:///${databasePath}`,
     MODEL_MODE: "replay",
+    DEEPSEEK_API_KEY: "",
     OPENAI_API_KEY: "",
     UPLOAD_DIR: join(runtimeRoot, "uploads"),
     WEB_ORIGIN: "http://127.0.0.1:3100",

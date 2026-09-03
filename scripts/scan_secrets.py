@@ -20,7 +20,9 @@ EXCLUDED_PARTS = {
     "var",
 }
 PATTERNS = {
-    "OpenAI API key": re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"),
+    "OpenAI-compatible API key (including DeepSeek)": re.compile(
+        r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"
+    ),
     "GitHub token": re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b"),
     "GitHub fine-grained token": re.compile(r"\bgithub_pat_[A-Za-z0-9_]{30,}\b"),
     "AWS access key": re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),

@@ -76,3 +76,15 @@
 - [OpenAI Docs：使用 AGENTS.md 自定义指令](https://learn.chatgpt.com/zh-Hans/docs/agent-configuration/agents-md)
 
 这些资料支持把长期项目指导放在根目录 `AGENTS.md` 和项目文档中，以便同一项目的后续任务读取；不同任务仍保留各自的聊天记录。
+
+## 7. 模型与 Agent 运行时
+
+- [DeepSeek API 快速开始](https://api-docs.deepseek.com/)
+  - 可支持：OpenAI 兼容客户端、官方 Base URL 与当前模型 ID；本项目于 2026-09-03 选用 `deepseek-v4-flash` 作为可配置默认值。
+- [DeepSeek Responses API](https://api-docs.deepseek.com/guides/responses_api/)
+  - 可支持：Responses API、JSON Schema、函数工具及推理强度的兼容范围。
+  - 限制：兼容能力、模型 ID、限额和价格可能变化，仍需在目标账户执行受控在线契约测试；文档兼容声明不能替代项目自身验收。
+- [DeepSeek Thinking Mode](https://api-docs.deepseek.com/guides/thinking_mode/)
+  - 可支持：Responses API 的 `reasoning.effort` 档位，以及当前 `medium` 映射为 `high` 的行为。
+- [OpenAI Agents SDK Quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart)
+  - 可支持：当前单一逻辑 Agent 的 SDK 编排层。模型供应商由 D-037 改为 DeepSeek，不代表业务状态交由 SDK 管理。

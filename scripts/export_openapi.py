@@ -34,6 +34,7 @@ def main() -> None:
         os.environ["MODEL_MODE"] = "replay"
         os.environ["DATABASE_URL"] = "sqlite://"
         os.environ["UPLOAD_DIR"] = str(Path(temporary_root) / "uploads")
+        os.environ["DEEPSEEK_API_KEY"] = ""
         os.environ["OPENAI_API_KEY"] = ""
 
         from shixiaoguan_api.main import app

@@ -49,8 +49,8 @@ def test_no_key_forces_audited_fixed_recording_replay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("MODEL_MODE", "live")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_MODEL", raising=False)
     adapter = AgentAdapter()
 
     output, execution = asyncio.run(
@@ -58,7 +58,8 @@ def test_no_key_forces_audited_fixed_recording_replay(
     )
 
     assert configured_agent_mode() == AgentMode.OFFLINE_REPLAY
-    assert adapter.model_name == "gpt-5.6-terra"
+    assert adapter.model_name == "deepseek-v4-flash"
+    assert adapter.base_url == "https://api.deepseek.com"
     assert adapter.reasoning_effort == "low"
     assert adapter.timeout_seconds == 25
     assert adapter.repair_retries == 1
@@ -68,6 +69,16 @@ def test_no_key_forces_audited_fixed_recording_replay(
     assert execution.recording_id == "demo-brief-standard-v1"
     assert execution.fallback_reason
     assert len(execution.input_sha256) == len(execution.output_sha256) == 64
+
+
+def test_legacy_openai_key_does_not_enable_deepseek_live_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MODEL_MODE", "auto")
+    monkeypatch.setenv("OPENAI_API_KEY", "legacy-key-must-not-be-used")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    assert configured_agent_mode() == AgentMode.OFFLINE_REPLAY
 
 
 def test_all_builtin_demo_recordings_cover_normalize_plan_and_explain(
@@ -187,7 +198,7 @@ def test_live_failure_falls_back_only_when_a_recording_matches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("MODEL_MODE", "live")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-used")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key-not-used")
     adapter = AgentAdapter()
 
     async def fake_failed_live(*args: object, **kwargs: object) -> tuple[None, AgentExecution]:
@@ -226,7 +237,7 @@ def test_live_explanation_with_ungrounded_number_falls_back_to_matching_recordin
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("MODEL_MODE", "live")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-used")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key-not-used")
     outcome, reason_codes, evidence = _decision_fixture(DemoScenarioId.GO)
     adapter = AgentAdapter()
 
@@ -275,19 +286,40 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import agents
+    import openai
 
     monkeypatch.setenv("MODEL_MODE", "live")
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-used")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key-not-used")
+    monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.example/v1/")
     captured_agents: list[dict[str, object]] = []
     captured_tool_outputs: list[dict[str, object]] = []
+    captured_clients: list[SimpleNamespace] = []
+
+    class FakeAsyncOpenAI(SimpleNamespace):
+        def __init__(self, *, api_key: str, base_url: str) -> None:
+            super().__init__(api_key=api_key, base_url=base_url, closed=False)
+            captured_clients.append(self)
+
+        async def close(self) -> None:
+            self.closed = True
+
+    class FakeResponsesModel(SimpleNamespace):
+        def __init__(self, *, model: str, openai_client: object) -> None:
+            super().__init__(model=model, openai_client=openai_client)
 
     def fake_model_settings(
         *,
         store: bool | None = None,
         reasoning: dict[str, str] | None = None,
         timeout: float | None = None,
+        tool_choice: str | None = None,
     ) -> dict[str, object]:
-        return {"store": store, "reasoning": reasoning, "timeout": timeout}
+        return {
+            "store": store,
+            "reasoning": reasoning,
+            "timeout": timeout,
+            "tool_choice": tool_choice,
+        }
 
     def fake_function_tool(function: object, **kwargs: object) -> object:
         assert kwargs["name_override"] == "read_locked_decision_evidence"
@@ -323,6 +355,8 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     monkeypatch.setattr(agents, "Runner", FakeRunner)
     monkeypatch.setattr(agents, "function_tool", fake_function_tool)
     monkeypatch.setattr(agents, "set_tracing_disabled", lambda disabled: None)
+    monkeypatch.setattr(agents, "OpenAIResponsesModel", FakeResponsesModel)
+    monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
 
     outcome, reason_codes, evidence = _decision_fixture(DemoScenarioId.GO)
     adapter = AgentAdapter()
@@ -333,6 +367,18 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     assert narrative.generated_by == "live-agent"
     assert execution.mode == AgentMode.LIVE
     assert len(captured_agents) == 1
+    assert captured_agents[0]["model"].model == "deepseek-v4-flash"  # type: ignore[union-attr]
+    assert captured_agents[0]["model_settings"]["tool_choice"] == (  # type: ignore[index]
+        "read_locked_decision_evidence"
+    )
+    assert captured_agents[0]["model_settings"]["store"] is False  # type: ignore[index]
+    assert captured_agents[0]["model_settings"]["reasoning"] == {  # type: ignore[index]
+        "effort": "low"
+    }
+    assert captured_agents[0]["model_settings"]["timeout"] == 25  # type: ignore[index]
+    assert captured_clients[0].api_key == "test-key-not-used"
+    assert captured_clients[0].base_url == "https://api.deepseek.example/v1"
+    assert captured_clients[0].closed is True
     assert captured_agents[0]["handoffs"] == []
     assert len(captured_agents[0]["tools"]) == 1  # type: ignore[arg-type]
     assert captured_tool_outputs == [
@@ -358,3 +404,107 @@ def test_live_explanation_has_one_call_scoped_read_only_tool(
     )
     assert captured_agents[-1]["tools"] == []
     assert captured_agents[-1]["handoffs"] == []
+    assert captured_agents[-1]["model_settings"]["tool_choice"] is None  # type: ignore[index]
+    assert all(client.closed for client in captured_clients)
+
+
+def test_installed_sdk_serializes_deepseek_responses_contract() -> None:
+    import httpx2
+    from agents import ModelSettings, OpenAIResponsesModel, function_tool
+    from agents.agent_output import AgentOutputSchema
+    from agents.models.interface import ModelTracing
+    from openai import AsyncOpenAI, InternalServerError
+
+    captured_requests: list[tuple[str, str, dict[str, object]]] = []
+
+    async def capture_request(request: httpx2.Request) -> httpx2.Response:
+        captured_requests.append(
+            (request.method, request.url.path, json.loads(request.content))
+        )
+        return httpx2.Response(
+            500,
+            json={
+                "error": {
+                    "message": "intentional response after request capture",
+                    "type": "server_error",
+                    "code": "server_error",
+                }
+            },
+            request=request,
+        )
+
+    async def exercise_sdk() -> None:
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(capture_request))
+        client = AsyncOpenAI(
+            api_key="test-key-not-a-secret",
+            base_url="https://api.deepseek.example",
+            max_retries=0,
+            http_client=http_client,
+        )
+        model = OpenAIResponsesModel(model="deepseek-v4-flash", openai_client=client)
+
+        async def read_locked_decision_evidence() -> str:
+            """Return the immutable decision evidence."""
+
+            return "{}"
+
+        evidence_tool = function_tool(read_locked_decision_evidence)
+        output_schema = AgentOutputSchema(DecisionNarrativeDraft)
+        try:
+            with pytest.raises(InternalServerError):
+                await model.get_response(
+                    "system instructions",
+                    "input",
+                    ModelSettings(
+                        store=False,
+                        reasoning={"effort": "low"},
+                        tool_choice="read_locked_decision_evidence",
+                    ),
+                    [evidence_tool],
+                    output_schema,
+                    [],
+                    ModelTracing.DISABLED,
+                )
+            with pytest.raises(InternalServerError):
+                await model.get_response(
+                    "system instructions",
+                    "input",
+                    ModelSettings(store=False, reasoning={"effort": "low"}),
+                    [],
+                    output_schema,
+                    [],
+                    ModelTracing.DISABLED,
+                )
+        finally:
+            await client.close()
+
+    asyncio.run(exercise_sdk())
+
+    assert len(captured_requests) == 2
+    for method, path, body in captured_requests:
+        assert (method, path) == ("POST", "/responses")
+        assert body["model"] == "deepseek-v4-flash"
+        assert body["store"] is False
+        assert body["reasoning"] == {"effort": "low"}
+        assert body["text"]["format"]["type"] == "json_schema"  # type: ignore[index]
+        assert body["text"]["format"]["strict"] is True  # type: ignore[index]
+        assert "previous_response_id" not in body
+        assert "conversation" not in body
+        assert "test-key-not-a-secret" not in json.dumps(body)
+
+    tool_body = captured_requests[0][2]
+    assert tool_body["tool_choice"] == {
+        "type": "function",
+        "name": "read_locked_decision_evidence",
+    }
+    assert len(tool_body["tools"]) == 1  # type: ignore[arg-type]
+    assert tool_body["tools"][0]["type"] == "function"  # type: ignore[index]
+    assert tool_body["tools"][0]["name"] == (  # type: ignore[index]
+        "read_locked_decision_evidence"
+    )
+    assert tool_body["tools"][0]["strict"] is True  # type: ignore[index]
+    assert tool_body["tools"][0]["parameters"]["properties"] == {}  # type: ignore[index]
+
+    no_tool_body = captured_requests[1][2]
+    assert no_tool_body["tools"] == []
+    assert "tool_choice" not in no_tool_body

@@ -16,6 +16,7 @@ Product Brief → 实验计划审批 → 模拟试销 → 数据质检
 - API：Python 3.12、FastAPI、Pydantic v2、SQLAlchemy 2、Alembic、Pandas、SciPy
 - 数据：SQLite WAL；运行数据库和上传物只保存在忽略提交的本地目录，HTML 报告按请求渲染。金额以整数分持久化，后端受 SQLite 64 位上限约束，Web 表单受 JavaScript 安全整数约束并以两位小数显示
 - Agent：单一逻辑编排 Agent 角色（无 handoff/子 Agent）；Brief 归一化与实验文字草案不使用工具，只有在线决策解释在单次调用内挂载一个无参数、只读的锁定证据工具；质检、分析、状态与交接均由应用确定性服务执行
+- 在线模型：DeepSeek OpenAI 兼容 Responses API，默认 `deepseek-v4-flash` 与低推理强度；OpenAI Agents SDK 仅作为编排层
 - 回放：默认只接受 `(input_sha256, prompt_version, output_schema_version)` 与固定录制完全匹配的结果；未命中返回 `422 REPLAY_RECORDING_MISS`，不会按请求动态生成“回放”
 - 契约：FastAPI OpenAPI 是后端接口事实来源，自动生成前端 TypeScript 类型，CI 拒绝未同步的契约漂移
 
@@ -36,7 +37,7 @@ pnpm dev
 - API：<http://127.0.0.1:8000>
 - OpenAPI：<http://127.0.0.1:8000/docs>
 
-`.env.example` 默认使用 `MODEL_MODE=replay`，因此没有 OpenAI API Key 也能完成已录制的核心演示。只有 `MODEL_MODE=live` 或 `MODEL_MODE=auto` **且**环境变量中存在 `OPENAI_API_KEY` 时才进入在线模式；否则使用严格离线回放。密钥不会写入数据库、报告或 Git。
+`.env.example` 默认使用 `MODEL_MODE=replay`，因此没有 DeepSeek API Key 也能完成已录制的核心演示。在线模式使用 DeepSeek 的 OpenAI 兼容 Responses API，默认模型为 `deepseek-v4-flash`：把密钥只写入本地、已被 Git 忽略的 `.env` 中，将 `MODEL_MODE` 改为 `live` 或 `auto` 并设置 `DEEPSEEK_API_KEY`。`DEEPSEEK_BASE_URL` 默认是 `https://api.deepseek.com`；仅有旧 `OPENAI_API_KEY` 不会启用在线模式。密钥不会写入数据库、报告或 Git。
 
 ## 推荐 Demo 路径
 

@@ -526,7 +526,7 @@ Agent 必须具备以下三类能力：
 
 ### 10.2 调用级只读工具
 
-当前实现只有在线 `EXPLAIN_DECISION` 调用挂载一个工具：`read_locked_decision_evidence()`。它无参数，只返回应用在该次调用前锁定的 `fixed_outcome`、原因码、EvidenceClaim 和限制；不持有数据库会话、网络能力或写状态能力。Brief 归一化与实验文字草案调用的 `tools=[]`，所有 SDK 调用的 `handoffs=[]`。
+当前实现只有在线 `EXPLAIN_DECISION` 调用挂载一个工具：`read_locked_decision_evidence()`。它无参数，只返回应用在该次调用前锁定的 `fixed_outcome`、原因码、EvidenceClaim 和限制；不持有数据库会话、网络能力或写状态能力。该调用以命名 `tool_choice` 强制首次读取此工具，完成后由 SDK 恢复普通结构化输出；Brief 归一化与实验文字草案调用的 `tools=[]`，所有 SDK 调用的 `handoffs=[]`。
 
 预置场景生成、数据校验、指标计算、四态规则、状态转换、审批、首单计算、交接和报告均由应用服务直接运行确定性代码，不是 Agent tools。未来连接器的权限和工具协议属于 P1，不能写成 P0 已实现能力。
 
@@ -534,7 +534,7 @@ Agent 必须具备以下三类能力：
 
 能够识别鞋服场景中的价格、材料、颜色尺码、MOQ、打样、交期等约束，并在信息不足时提出问题。
 
-在线模式默认使用 `gpt-5.6-terra` 和低推理强度；输出必须通过 Pydantic/JSON Schema 校验。离线模式只能按 `(input_sha256, prompt_version, output_schema_version)` 精确匹配固定录制，并在页面显示 `OFFLINE_REPLAY`；未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态拼接或使用回放回答未录制的自由问题。
+在线模式通过 DeepSeek 的 OpenAI 兼容 Responses API，默认使用 `deepseek-v4-flash` 和低推理强度；仅从 `DEEPSEEK_API_KEY` 取在线凭据，模型、Base URL、推理强度、超时和结构修复次数均使用 `DEEPSEEK_*` 环境变量配置。输出必须通过 Pydantic/JSON Schema 校验。离线模式只能按 `(input_sha256, prompt_version, output_schema_version)` 精确匹配固定录制，并在页面显示 `OFFLINE_REPLAY`；未命中返回 `422 REPLAY_RECORDING_MISS`，不得动态拼接或使用回放回答未录制的自由问题。
 
 ### 10.4 能力边界
 

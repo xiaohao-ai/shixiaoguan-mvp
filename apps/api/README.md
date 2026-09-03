@@ -13,8 +13,11 @@ uv run mypy
 
 The default database is `./shixiaoguan.db`; Alembic migrates it on startup and
 SQLite runs with foreign keys and WAL enabled. Set `DATABASE_URL` to override it.
-`MODEL_MODE=replay|live|auto` controls the installed OpenAI Agents SDK adapter.
-Without an API key, `auto` and failed `live` calls explicitly use the audited replay.
+`MODEL_MODE=replay|live|auto` controls the OpenAI Agents SDK adapter backed by
+DeepSeek's OpenAI-compatible Responses API. Live mode requires `DEEPSEEK_API_KEY`;
+the default endpoint is `https://api.deepseek.com` and the default model is
+`deepseek-v4-flash`. Without that key, `auto` and failed `live` calls explicitly
+use the audited replay. `OPENAI_API_KEY` is intentionally not used as a fallback.
 
 Every `POST`, `PUT`, `PATCH`, or `DELETE` under `/api/v1` requires an
 `Idempotency-Key`. The built-in scenarios are deterministic synthetic data; the

@@ -14,7 +14,7 @@
     "lint": "pnpm lint:web && pnpm lint:api",
     "lint:web": "pnpm --dir apps/web lint",
     "lint:api": "python3 -m uv --directory apps/api run ruff check . && python3 -m uv --directory apps/api run mypy src",
-    "export:openapi": "MODEL_MODE=replay DATABASE_URL=sqlite:// OPENAI_API_KEY= node scripts/run-uv.mjs --directory apps/api run python ../../scripts/export_openapi.py",
+    "export:openapi": "MODEL_MODE=replay DATABASE_URL=sqlite:// DEEPSEEK_API_KEY= OPENAI_API_KEY= node scripts/run-uv.mjs --directory apps/api run python ../../scripts/export_openapi.py",
     "generate:api-types": "pnpm export:openapi && pnpm --dir apps/web generate:api-types",
     "check:contract": "pnpm generate:api-types && git diff --exit-code -- apps/api/openapi.json apps/web/lib/api.generated.ts",
     "check:secrets": "python3 scripts/scan_secrets.py",

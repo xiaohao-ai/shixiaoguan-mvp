@@ -180,8 +180,8 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - 单任务时延、模型调用次数和估算成本；
 - 同一固定输入的关键决策稳定性。
 - 逻辑业务 Agent 角色数（P0 恒为 1）、handoff 数（恒为 0）；SDK 可按结构化任务创建多个短生命周期调用实例，不能把实例数误算成业务 Agent 数；
-- Brief 归一化和实验计划文字调用的工具数为 0；在线 `EXPLAIN_DECISION` 只挂载一个无参数 `read_locked_decision_evidence`，其返回值仅含应用锁定的类别、原因码、证据和限制；
-- 在线 `gpt-5.6-terra` 低推理模式与 `OFFLINE_REPLAY` 的模式标记正确率；
+- Brief 归一化和实验计划文字调用的工具数为 0；在线 `EXPLAIN_DECISION` 只挂载一个无参数 `read_locked_decision_evidence`，必须以命名 `tool_choice` 首次调用，其返回值仅含应用锁定的类别、原因码、证据和限制；
+- 在线 DeepSeek `deepseek-v4-flash` 低推理模式与 `OFFLINE_REPLAY` 的模式标记正确率；仅设置旧 `OPENAI_API_KEY` 时仍须保持回放，`DEEPSEEK_API_KEY` 不得进入日志、数据库、报告或 Git；
 - 离线回放 `(input_sha256, prompt_version, output_schema_version)` 三元键命中率，以及未命中返回 `422 REPLAY_RECORDING_MISS` 且状态不推进的正确率。
 
 ### MVP 验收
@@ -246,6 +246,7 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 销量/概率预测模型与指标：N/A（P0）
 决策策略版本：
 模型模式：LIVE / OFFLINE_REPLAY
+在线供应商 / 模型 ID：DeepSeek / deepseek-v4-flash（回放时 N/A）
 本次评测指标：
 总体结果：
 分群结果：

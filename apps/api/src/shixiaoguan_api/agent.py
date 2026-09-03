@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import inspect
 import json
@@ -23,7 +24,8 @@ from .schemas import (
     ProductBrief,
 )
 
-DEFAULT_MODEL = "gpt-5.6-terra"
+DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_REASONING_EFFORT = "low"
 DEFAULT_TIMEOUT_SECONDS = 25.0
 DEFAULT_REPAIR_RETRIES = 1
@@ -411,7 +413,7 @@ def configured_agent_mode() -> AgentMode:
     requested = requested_model_mode()
     if requested == "replay":
         return AgentMode.OFFLINE_REPLAY
-    if not os.getenv("OPENAI_API_KEY"):
+    if not (os.getenv("DEEPSEEK_API_KEY") or "").strip():
         return AgentMode.OFFLINE_REPLAY
     return AgentMode.LIVE
 
@@ -444,13 +446,19 @@ class AgentAdapter:
     """One bounded Agent; deterministic services own all numbers and states."""
 
     def __init__(self) -> None:
-        self.model_name = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
-        self.reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", DEFAULT_REASONING_EFFORT)
+        self.model_name = (os.getenv("DEEPSEEK_MODEL") or "").strip() or DEFAULT_MODEL
+        self.base_url = (
+            (os.getenv("DEEPSEEK_BASE_URL") or "").strip() or DEFAULT_BASE_URL
+        ).rstrip("/")
+        self.reasoning_effort = (
+            (os.getenv("DEEPSEEK_REASONING_EFFORT") or "").strip()
+            or DEFAULT_REASONING_EFFORT
+        )
         self.timeout_seconds = float(
-            os.getenv("OPENAI_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS))
+            os.getenv("DEEPSEEK_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS))
         )
         self.repair_retries = int(
-            os.getenv("OPENAI_STRUCTURE_REPAIR_RETRIES", str(DEFAULT_REPAIR_RETRIES))
+            os.getenv("DEEPSEEK_STRUCTURE_REPAIR_RETRIES", str(DEFAULT_REPAIR_RETRIES))
         )
 
     @staticmethod
@@ -470,20 +478,41 @@ class AgentAdapter:
     ) -> tuple[T | None, AgentExecution]:
         start = time.monotonic()
         input_hash = _sha256_json(input_payload)
+        client: Any | None = None
         try:
-            from agents import Agent, ModelSettings, Runner, function_tool, set_tracing_disabled
+            from agents import (
+                Agent,
+                ModelSettings,
+                OpenAIResponsesModel,
+                Runner,
+                function_tool,
+                set_tracing_disabled,
+            )
             from agents.exceptions import ModelBehaviorError
+            from openai import AsyncOpenAI
+
+            api_key = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
+            if not api_key:
+                raise RuntimeError("DEEPSEEK_API_KEY is required for live mode")
+            client = AsyncOpenAI(api_key=api_key, base_url=self.base_url)
+            model = OpenAIResponsesModel(model=self.model_name, openai_client=client)
 
             set_tracing_disabled(True)
             os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
             parameters = inspect.signature(ModelSettings).parameters
-            settings_kwargs: dict[str, Any] = {}
-            if "store" in parameters:
-                settings_kwargs["store"] = False
-            if "reasoning" in parameters:
-                settings_kwargs["reasoning"] = {"effort": self.reasoning_effort}
-            if "timeout" in parameters:
-                settings_kwargs["timeout"] = self.timeout_seconds
+            settings_kwargs: dict[str, Any] = {
+                "store": False,
+                "reasoning": {"effort": self.reasoning_effort},
+                "timeout": self.timeout_seconds,
+            }
+            if read_only_context is not None:
+                settings_kwargs["tool_choice"] = "read_locked_decision_evidence"
+            missing_settings = sorted(set(settings_kwargs) - set(parameters))
+            if missing_settings:
+                raise RuntimeError(
+                    "installed Agents SDK lacks required model settings: "
+                    + ", ".join(missing_settings)
+                )
             tools: list[Any] = []
             if read_only_context is not None:
                 # Snapshot the context before exposing it to the SDK. The tool has
@@ -514,7 +543,7 @@ class AgentAdapter:
                 )
             agent = Agent(
                 name="试销官单编排 Agent",
-                model=self.model_name,
+                model=model,
                 model_settings=ModelSettings(**settings_kwargs),
                 output_type=output_type,
                 instructions=instructions,
@@ -573,6 +602,11 @@ class AgentAdapter:
                 success=False,
                 fallback_reason=f"live agent failed: {type(exc).__name__}",
             )
+        finally:
+            if client is not None:
+                # Closing the short-lived transport must not replace the model result.
+                with contextlib.suppress(Exception):
+                    await client.close()
 
     @staticmethod
     def _fallback_execution(

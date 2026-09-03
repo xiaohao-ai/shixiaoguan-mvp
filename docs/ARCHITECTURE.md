@@ -66,7 +66,7 @@ flowchart LR
     API --> OA[试销官编排 Agent]
 
     OA --> SDK[OpenAI Agents SDK]
-    SDK --> LLM[模型适配层 / 离线回放]
+    SDK --> LLM[DeepSeek Responses API / 离线回放]
     OA --> READ[调用级只读证据工具]
     CORE --> MODULES[确定性服务模块]
     CORE --> RULES[指标与决策规则引擎]
@@ -208,7 +208,7 @@ Brief 或 DemoPolicy 的新版本是另一条显式重开边。任何非 `ARCHIV
 
 ## 7. 应用接口与 Agent 工具边界
 
-应用服务负责所有写入和状态转换。当前 SDK 白名单不是一组通用数据访问工具，而是一个严格受限的调用级工具：只有在线 `EXPLAIN_DECISION` 创建 Agent 时挂载无参数 `read_locked_decision_evidence()`，返回该次调用前由应用锁定的 `fixed_outcome`、原因码、EvidenceClaim 和限制。工具闭包不持有数据库 Session、网络客户端或写状态能力；调用结束即销毁。Brief 归一化和实验文字草案运行时 `tools=[]`，全部 SDK 运行 `handoffs=[]`。
+应用服务负责所有写入和状态转换。当前 SDK 白名单不是一组通用数据访问工具，而是一个严格受限的调用级工具：只有在线 `EXPLAIN_DECISION` 创建 Agent 时挂载无参数 `read_locked_decision_evidence()`，并以命名 `tool_choice` 强制首次调用，返回该次调用前由应用锁定的 `fixed_outcome`、原因码、EvidenceClaim 和限制；工具返回后 SDK 重置 `tool_choice` 以完成结构化回答。工具闭包不持有数据库 Session、网络客户端或写状态能力；调用结束即销毁。Brief 归一化和实验文字草案运行时 `tools=[]`，全部 SDK 运行 `handoffs=[]`。
 
 数据校验、SRM、指标、EvidenceCard、四态决策、状态转换、审批、首单计算、交接生成与审计均由应用服务直接调用确定性模块，不经过模型工具调用，也不能被模型改写。
 
@@ -275,9 +275,9 @@ GET  /projects/{id}/report
 | Pivot 文案与 HTML 报告 | 原因码映射＋确定性模板 | 保证单变量修订和导出内容可复算 |
 | 预测模型 | P0 不实例化，所有预测指标为 `N/A` | 冷启动阶段不应制造虚假精度 |
 
-在线模式使用 OpenAI Agents SDK 的单一逻辑编排 Agent 角色，不存在 handoff 或子 Agent；不同结构化输出任务可以由适配层创建短生命周 SDK 运行对象，但它们不是独立业务 Agent，也不拥有业务状态。默认模型为 `gpt-5.6-terra`、`reasoning.effort=low`。官方文档显示该模型支持函数调用和结构化输出；但实际账户权限、限额和可用性仍须在开发前冒烟验证。参考：[GPT-5.6 Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra)、[Agents SDK Quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart)。
+在线模式保留 OpenAI Agents SDK 的单一逻辑编排 Agent 角色，不存在 handoff 或子 Agent；适配层将带 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_BASE_URL` 的显式异步客户端注入 Responses 模型适配器，避免 SDK 默认读取 OpenAI 凭据。不同结构化输出任务可以创建短生命周期 SDK 运行对象，但它们不是独立业务 Agent，也不拥有业务状态。在线供应商为 DeepSeek，默认模型为 `deepseek-v4-flash`、`reasoning.effort=low`；官方文档列出 Responses API、JSON Schema 与函数工具兼容能力，实际账户权限、限额和稳定性仍须用受控在线契约测试验证。参考：[DeepSeek API 快速开始](https://api-docs.deepseek.com/)、[DeepSeek Responses API](https://api-docs.deepseek.com/guides/responses_api/)、[OpenAI Agents SDK Quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart)。
 
-单次在线调用超时 25 秒，结构不合法时最多允许一次结构修复重试；仍失败或缺少 API Key 时切换显式离线回放，并记录失败原因。模型 ID 通过环境变量配置；20 个代表性用例只有在低推理强度不达验收门槛时，才以同一用例评估中等强度。
+单次在线调用超时 25 秒，结构不合法时最多允许一次结构修复重试；仍失败或缺少 `DEEPSEEK_API_KEY` 时切换显式离线回放，并记录失败原因。默认 Base URL 为 `https://api.deepseek.com`；模型 ID 等参数通过 `DEEPSEEK_*` 环境变量配置，旧 `OPENAI_API_KEY` 不会激活在线模式。20 个代表性用例只有在低推理强度不达验收门槛时，才以同一用例评估 `high`；DeepSeek 当前会把 `medium` 映射为 `high`，因此不把二者作为两个独立实验档位。
 
 离线模式是显式的固定录制回放适配器：以规范化输入计算 `input_sha256`，仅在 `(input_sha256, prompt_version, output_schema_version)` 三元组精确命中应用内录制时返回结果，并标记 `OFFLINE_REPLAY` 与 `recording_id`。未命中返回 HTTP `422` 和 `code=REPLAY_RECORDING_MISS`，不动态生成录制、不改变业务状态。模型上下文只发送必要 Brief 或聚合指标，不发送原始个人数据；API 存储关闭，SDK 外部追踪默认关闭，应用自身记录模型、Prompt、耗时、Token 与输入输出哈希。
 
@@ -493,7 +493,7 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 - 数据库：SQLite WAL；金额使用整数分并限制在 SQLite 64 位有符号整数范围，计数使用非负整数；Web 表单再限制为 JavaScript 安全整数可换算范围并以两位小数显示
 - 文件存储：本地受控目录保存图片；数据库保存附件元数据、SHA-256 与相对对象键。HTML 报告按请求从当前投影和审计记录渲染，试销快照保存在 SQLite 记录中
 - Agent：OpenAI Agents SDK（Python）的单一逻辑编排 Agent 角色；各次结构化调用可创建短生命周期 SDK 实例，流程转移仍由应用层确定性状态机管理，不使用多 Agent handoff
-- 模型：在线 `gpt-5.6-terra`，`reasoning.effort=low`；离线为录制回放适配器
+- 模型：在线 DeepSeek `deepseek-v4-flash`，`reasoning.effort=low`，经 OpenAI 兼容 Responses API 适配；离线为录制回放适配器
 - API 契约：Pydantic 是唯一后端 Schema 来源，FastAPI 输出 OpenAPI，并生成前端 TypeScript 类型；CI 检查契约漂移
 - 向量检索：本轮不引入，后续有授权商品库时再选型
 - 报告导出：响应式 HTML 与浏览器打印样式；本轮不生成原生 PDF
