@@ -51,6 +51,8 @@ jobs:
       - run: pnpm --dir apps/web test
       - run: pnpm --dir apps/web typecheck
       - run: pnpm --dir apps/web build
+      - name: Verify the GitHub Pages static export
+        run: pnpm build:pages
 
   contract:
     runs-on: ubuntu-latest
@@ -117,3 +119,5 @@ jobs:
         run: pnpm test:e2e
         env:
           E2E_WEB_SERVER_MODE: production
+      - name: Run GitHub Pages browser-only E2E
+        run: pnpm test:e2e:pages

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useProject } from "@/components/project-context";
 import { ActionMessage, Button, SectionHeading, StatusPill, Surface } from "@/components/ui";
 import { api, getErrorMessage } from "@/lib/api";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 import type { DemoPolicy } from "@/lib/types";
 
 type NumericPolicyKey = Exclude<keyof DemoPolicy, "version" | "primary_metric">;
@@ -51,7 +52,7 @@ export function PolicyEditor() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error" | "info"; text: string }>();
   const state = project?.state ?? project?.status;
-  const editable = isPolicyEditable(state);
+  const editable = !STATIC_PREVIEW_ENABLED && isPolicyEditable(state);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,12 +101,12 @@ export function PolicyEditor() {
     <Surface className="panel-pad policy-editor">
       <SectionHeading
         title="DemoPolicy v1"
-        description="这些值只是合成 Demo 的可编辑默认，不是行业标准。计划批准时会冻结当前快照。"
+        description={STATIC_PREVIEW_ENABLED ? "GitHub Pages 仅展示已预注册的只读快照；这些值不是行业标准。" : "这些值只是合成 Demo 的可编辑默认，不是行业标准。计划批准时会冻结当前快照。"}
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <StatusPill tone={editable ? "warn" : "ink"}>
               {editable ? <SlidersHorizontal className="size-3.5" /> : <LockKeyhole className="size-3.5" />}
-              {editable ? "可创建新版本" : "已归档·只读"}
+              {editable ? "可创建新版本" : STATIC_PREVIEW_ENABLED ? "Pages 固定快照·只读" : "已归档·只读"}
             </StatusPill>
             <Button type="button" variant="ghost" onClick={() => void load()} disabled={loading || saving}>
               <RefreshCw className="size-4" /> 重读
@@ -176,10 +177,14 @@ export function PolicyEditor() {
           </details>
 
           <div className="policy-editor__footer">
-            <p>{editable ? "保存将生成不可覆盖的新版本；若计划已批准，项目会重开到 Brief Ready 并使当前下游投影失效。" : `当前流程 ${state ?? "未知"}；归档项目不可再修改。`}</p>
-            <Button type="submit" loading={saving} disabled={!editable || !policy}>
-              <Save className="size-4" /> 保存为新策略版本
-            </Button>
+            <p>{editable ? "保存将生成不可覆盖的新版本；若计划已批准，项目会重开到 Brief Ready 并使当前下游投影失效。" : STATIC_PREVIEW_ENABLED ? "公开静态预览不会假装修改策略；请在本地完整版创建新版本。" : `当前流程 ${state ?? "未知"}；归档项目不可再修改。`}</p>
+            {STATIC_PREVIEW_ENABLED ? (
+              <StatusPill tone="ink"><LockKeyhole className="size-3.5" /> 静态预览只读</StatusPill>
+            ) : (
+              <Button type="submit" loading={saving} disabled={!editable || !policy}>
+                <Save className="size-4" /> 保存为新策略版本
+              </Button>
+            )}
           </div>
         </form>
       ) : null}

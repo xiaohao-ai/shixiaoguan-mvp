@@ -2,6 +2,7 @@
 
 import { Bot, Cloud, FlaskConical, ShieldAlert, Wifi, WifiOff } from "lucide-react";
 import { useApiStatus } from "@/components/providers";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function GlobalGuardrail() {
   const { state, agentMode, publicPreviewMode } = useApiStatus();
@@ -17,7 +18,12 @@ export function GlobalGuardrail() {
           <ShieldAlert aria-hidden="true" className="size-3.5" />
           非生产指令 · 不会自动投放、下单或打样
         </span>
-        {publicPreviewMode ? (
+        {STATIC_PREVIEW_ENABLED ? (
+          <span className="guardrail__notice">
+            <Cloud aria-hidden="true" className="size-3.5" />
+            GitHub Pages 浏览器内静态回放 · 无 FastAPI / SQLite / DeepSeek · 状态仅存当前浏览器
+          </span>
+        ) : publicPreviewMode ? (
           <span className="guardrail__notice">
             <Cloud aria-hidden="true" className="size-3.5" />
             公开预览 · 临时数据会重置 · 请勿输入真实业务信息
@@ -27,19 +33,23 @@ export function GlobalGuardrail() {
       <div className="guardrail__status">
         <span className="model-mode" aria-live="polite">
           <Bot aria-hidden="true" className="size-3.5" />
-          {agentMode === "LIVE"
+          {STATIC_PREVIEW_ENABLED
+            ? "固定录制回放 · 无模型 Key"
+            : agentMode === "LIVE"
             ? "在线模型"
             : agentMode === "OFFLINE_REPLAY"
               ? "离线回放"
               : "模型模式待检查"}
         </span>
-        <span className={`connection connection--${state}`} aria-live="polite">
-          {state === "online" ? (
+        <span className={`connection connection--${STATIC_PREVIEW_ENABLED ? "online" : state}`} aria-live="polite">
+          {STATIC_PREVIEW_ENABLED ? (
+            <Cloud aria-hidden="true" className="size-3.5" />
+          ) : state === "online" ? (
             <Wifi aria-hidden="true" className="size-3.5" />
           ) : (
             <WifiOff aria-hidden="true" className="size-3.5" />
           )}
-          {state === "checking" ? "连接检查中" : state === "online" ? "API 在线" : "API 离线"}
+          {STATIC_PREVIEW_ENABLED ? "浏览器内运行 · 无 API" : state === "checking" ? "连接检查中" : state === "online" ? "API 在线" : "API 离线"}
         </span>
       </div>
     </div>

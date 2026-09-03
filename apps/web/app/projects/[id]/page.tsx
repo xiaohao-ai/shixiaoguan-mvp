@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { ProjectIndexRedirect } from "@/components/project-index-redirect";
 
 export default async function ProjectIndex({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  redirect(`/projects/${id}/brief`);
+  return <ProjectIndexRedirect projectId={id} />;
 }

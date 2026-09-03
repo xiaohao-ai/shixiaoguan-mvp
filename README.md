@@ -41,14 +41,20 @@ pnpm dev
 
 ## 开源与线上预览
 
-本项目采用 [MIT License](./LICENSE) 开源，贡献方式与安全报告边界见 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。线上产品预览使用 Render Free 的单 Docker Web Service；容器只向公网暴露 Next.js 的 `$PORT`，浏览器通过同域 `/api/v1` 访问由 Next.js 代理、仅监听容器回环地址的 FastAPI。`render.yaml` 将部署区域固定为 Singapore，并只在 `main` 的检查通过后自动部署。
+线上评审版：[https://xiaohao-ai.github.io/shixiaoguan-mvp/](https://xiaohao-ai.github.io/shixiaoguan-mvp/)
+
+本项目采用 [MIT License](./LICENSE) 开源，贡献方式与安全报告边界见 [CONTRIBUTING.md](./CONTRIBUTING.md) 和 [SECURITY.md](./SECURITY.md)。`main` 分支通过检查后由 GitHub Actions 自动发布到 GitHub Pages，不需要 Render 账号、服务器或模型 Key。
+
+GitHub Pages 只托管静态文件，因此线上评审版在浏览器内运行固定 `SYNTHETIC` 场景回放，并把当前演示进度保存在本浏览器；它不连接 FastAPI、SQLite 或 DeepSeek，不接受图片附件，也不能承载真实企业或个人数据。清理站点数据会重置演示。本地运行仍是完整的 Next.js＋FastAPI＋SQLite 版本，并可按上文选择 DeepSeek 在线模式。
+
+如需在本机复现无模型 Key、禁附件的完整双栈公开预览边界，仍可使用可选容器：
 
 ```bash
 docker build -t shixiaoguan-preview .
 docker run --rm -p 3000:3000 -e PORT=3000 shixiaoguan-preview
 ```
 
-本地打开 <http://127.0.0.1:3000>，同域健康检查为 <http://127.0.0.1:3000/api/v1/health>。线上免费域名会在首次部署成功后列在本节顶部。该镜像固定启用 `PUBLIC_PREVIEW_MODE`：强制离线回放、移除 DeepSeek/OpenAI 凭据、禁用附件上传，并把 SQLite 与上传目录放入每次启动独立的系统临时目录。免费实例会休眠，重启或重新部署会丢弃预览状态；不要输入企业资料、个人信息或其他敏感数据。容器入口使用一个 Uvicorn worker、无热重载，并把平台 `SIGTERM` 转发给 Web/API 后再清理临时目录。
+本地打开 <http://127.0.0.1:3000>，同域健康检查为 <http://127.0.0.1:3000/api/v1/health>。该镜像固定启用 `PUBLIC_PREVIEW_MODE`：强制离线回放、移除 DeepSeek/OpenAI 凭据、禁用附件上传，并把 SQLite 与上传目录放入每次启动独立的系统临时目录。容器入口使用一个 Uvicorn worker、无热重载，并把平台 `SIGTERM` 转发给 Web/API 后再清理临时目录；它是本地复现工具，不是当前线上托管方式。
 
 ## 推荐 Demo 路径
 
@@ -84,7 +90,7 @@ python3 -m uv --directory apps/api run pytest
 
 `pnpm check` 包含前后端 lint、类型检查、单元/集成测试、生产构建与 OpenAPI 契约漂移检查。CI 的黄金回归不调用付费模型；在线模型契约测试属于显式启用的受控检查。
 
-CI 还会构建上述容器，并通过同域健康接口验证 Web、代理和 API 全链路以及公开预览安全标志。
+CI 还会验证 GitHub Pages 静态导出，并构建上述可选容器，通过同域健康接口验证完整 Web、代理和 API 链路及公开预览安全标志。
 
 ## 目录
 

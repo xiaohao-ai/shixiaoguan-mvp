@@ -24,6 +24,7 @@ import {
 import { api, getErrorMessage } from "@/lib/api";
 import { experimentIsApproved, pickNumber } from "@/lib/presentation";
 import type { JsonValue, TrialObservation } from "@/lib/types";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 const AUTO_REPLAY_INTERVAL_MS = 700;
 const RESETTABLE_WORKFLOW_STATES = new Set([
@@ -100,7 +101,7 @@ export function SimulationView() {
           ? "剩余试销周期已完成回放。"
           : mode === "auto"
             ? `自动回放已推进至第 ${nextDay ?? "—"} 天。`
-            : "已追加 1 天聚合观测并写入审计记录。",
+            : STATIC_PREVIEW_ENABLED ? "已在当前浏览器追加 1 天合成观测和演示事件。" : "已追加 1 天聚合观测并写入审计记录。",
       });
     } catch (caught) {
       if (mode === "auto") setAutoPlaying(false);
@@ -120,7 +121,7 @@ export function SimulationView() {
 
   const startAutoReplay = () => {
     setAutoPlaying(true);
-    setMessage({ tone: "info", text: "已开始自动回放；控制台将按日调用同一个服务端推进接口。" });
+    setMessage({ tone: "info", text: STATIC_PREVIEW_ENABLED ? "已开始浏览器内自动回放；不发起网络或服务端请求。" : "已开始自动回放；控制台将按日调用同一个服务端推进接口。" });
   };
 
   const pauseAutoReplay = () => {
@@ -137,7 +138,9 @@ export function SimulationView() {
       await Promise.all([refresh(), loadObservations()]);
       setMessage({
         tone: "success",
-        text: "已重置当前回放。旧数据集已标记为非活跃，原始观测、对象版本和审计历史仍保留。",
+        text: STATIC_PREVIEW_ENABLED
+          ? "已重置浏览器内当前回放。演示事件与对象快照保留；逐日观测可由固定场景重新生成。"
+          : "已重置当前回放。旧数据集已标记为非活跃，原始观测、对象版本和审计历史仍保留。",
       });
     } catch (caught) {
       setMessage({ tone: "error", text: getErrorMessage(caught) });
@@ -206,7 +209,9 @@ export function SimulationView() {
               </Button>
             </div>
             <p className="text-xs text-muted">
-              暂停只停止前端自动推进。重置会清除当前分析投影，但保留旧数据集、观测、版本与审计历史。
+              {STATIC_PREVIEW_ENABLED
+                ? "暂停只停止浏览器计时器。重置会清除当前分析投影，并保留演示事件和对象快照。"
+                : "暂停只停止前端自动推进。重置会清除当前分析投影，但保留旧数据集、观测、版本与审计历史。"}
             </p>
           </div>
           <div className="replay-console__timeline">
@@ -231,7 +236,7 @@ export function SimulationView() {
             {!approved ? (
               <div className="callout callout--warn mt-6">
                 <strong>实验质量门尚未通过</strong>
-                <p>请先到“实验计划”页完成服务器端人工审批；前端不会绕过质量门启动回放。</p>
+                <p>{STATIC_PREVIEW_ENABLED ? "请先到“实验计划”页完成浏览器内演示审批；它仅验证门禁交互。" : "请先到“实验计划”页完成服务器端人工审批；前端不会绕过质量门启动回放。"}</p>
               </div>
             ) : null}
           </div>
@@ -241,7 +246,7 @@ export function SimulationView() {
 
         {daily.length > 0 ? (
           <Surface className="panel-pad">
-            <SectionHeading title="已写入的逐日观测" description="仅显示 API 返回的聚合计数；条形长度按当前最大曝光归一化。" />
+            <SectionHeading title="已写入的逐日观测" description={STATIC_PREVIEW_ENABLED ? "仅显示浏览器内固定合成计数；条形长度按当前最大曝光归一化。" : "仅显示 API 返回的聚合计数；条形长度按当前最大曝光归一化。"} />
             <DailyBars rows={daily} />
           </Surface>
         ) : null}

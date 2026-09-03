@@ -24,6 +24,8 @@ import {
 } from "@/components/ui";
 import { api, reportUrl } from "@/lib/api";
 import { formatDateTime } from "@/lib/presentation";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
+import { openStaticPreviewReport } from "@/lib/static-preview";
 import type { AgentRun, AuditEvent, ObjectVersion } from "@/lib/types";
 
 type AuditFilter = "ALL" | "HUMAN" | "AGENT" | "TOOL";
@@ -73,16 +75,20 @@ export function AuditView() {
       <PageHeading
         eyebrow="07 · Audit replay"
         title="沿着证据链回到每一步"
-        description="状态变化、工具调用、对象版本和人工审批按时间记录。审计页只读取后端事件，不在浏览器中补写历史。"
+        description={STATIC_PREVIEW_ENABLED ? "本页回放当前浏览器中的合成事件和对象快照；它不是服务端审计证据，清理站点数据后会丢失。" : "状态变化、工具调用、对象版本和人工审批按时间记录。审计页只读取后端事件，不在浏览器中补写历史。"}
         actions={
           <div className="flex flex-wrap gap-2">
             <a
               className="button button--secondary"
-              href={reportUrl(projectId)}
+              href={STATIC_PREVIEW_ENABLED ? "#" : reportUrl(projectId)}
+              onClick={STATIC_PREVIEW_ENABLED ? (event) => {
+                event.preventDefault();
+                openStaticPreviewReport();
+              } : undefined}
               target="_blank"
               rel="noreferrer"
             >
-              <FileText className="size-4" /> 打开 HTML 报告
+              <FileText className="size-4" /> {STATIC_PREVIEW_ENABLED ? "打开评审快照" : "打开 HTML 报告"}
             </a>
             <Button variant="secondary" onClick={() => void load()} loading={loading}>
               <RefreshCw className="size-4" /> 刷新事件
@@ -92,24 +98,24 @@ export function AuditView() {
       />
 
       <div className="audit-stats">
-        <Surface><span><Activity className="size-4" /> 全部事件</span><strong>{events.length}</strong><small>当前项目完整事件流</small></Surface>
+        <Surface><span><Activity className="size-4" /> 全部事件</span><strong>{events.length}</strong><small>{STATIC_PREVIEW_ENABLED ? "当前浏览器合成事件流" : "当前项目完整事件流"}</small></Surface>
         <Surface><span><UserCheck className="size-4" /> 人工节点</span><strong>{humanCount}</strong><small>审批与修改记录</small></Surface>
         <Surface><span><Wrench className="size-4" /> 系统/工具节点</span><strong>{toolCount}</strong><small>状态机、校验与确定性计算</small></Surface>
         <Surface><span><Bot className="size-4" /> Agent 运行</span><strong>{agentRuns.length}</strong><small>模式、Prompt 与输入输出哈希</small></Surface>
-        <Surface><span><FileText className="size-4" /> 对象版本</span><strong>{objectVersions.length}</strong><small>不可覆盖的业务对象快照</small></Surface>
-        <Surface><span><Clock3 className="size-4" /> 当前流程</span><strong className="audit-state">{project?.workflow_state ?? project?.status ?? project?.state ?? "—"}</strong><small>由服务端状态机维护</small></Surface>
+        <Surface><span><FileText className="size-4" /> 对象版本</span><strong>{objectVersions.length}</strong><small>{STATIC_PREVIEW_ENABLED ? "浏览器内演示快照（可清除）" : "不可覆盖的业务对象快照"}</small></Surface>
+        <Surface><span><Clock3 className="size-4" /> 当前流程</span><strong className="audit-state">{project?.workflow_state ?? project?.status ?? project?.state ?? "—"}</strong><small>{STATIC_PREVIEW_ENABLED ? "由浏览器内静态回放状态机维护" : "由服务端状态机维护"}</small></Surface>
       </div>
 
       <Surface className="panel-pad mt-5">
         <SectionHeading
           title="Agent 运行证据"
-          description="仅展示必要运行元数据和哈希；模型不能改写数值、四态结果或审批状态。"
+          description={STATIC_PREVIEW_ENABLED ? "仅展示固定录制的运行元数据和哈希；GitHub Pages 不调用 DeepSeek 或任何模型。" : "仅展示必要运行元数据和哈希；模型不能改写数值、四态结果或审批状态。"}
         />
         {!loading && agentRuns.length === 0 ? (
           <EmptyState
             icon={<Bot className="size-5" />}
             title="尚无 Agent 运行记录"
-            description="完成 Brief 归一化、计划草案或引用式解释后，这里会显示在线/回放模式、Prompt 版本与降级原因。"
+            description={STATIC_PREVIEW_ENABLED ? "启动固定场景并运行分析后，这里会显示浏览器内 OFFLINE_REPLAY 录制元数据。" : "完成 Brief 归一化、计划草案或引用式解释后，这里会显示在线/回放模式、Prompt 版本与降级原因。"}
           />
         ) : (
           <div className="agent-run-list">
@@ -120,14 +126,14 @@ export function AuditView() {
 
       <Surface className="panel-pad mt-5">
         <SectionHeading
-          title="不可变对象版本"
-          description="每一行绑定对象 ID、版本与 canonical SHA-256；审批事件另行精确引用目标版本。"
+          title={STATIC_PREVIEW_ENABLED ? "浏览器内对象快照" : "不可变对象版本"}
+          description={STATIC_PREVIEW_ENABLED ? "每一行绑定演示对象 ID、版本与 SHA-256；这些数据仅存当前浏览器，不是防篡改服务端账本。" : "每一行绑定对象 ID、版本与 canonical SHA-256；审批事件另行精确引用目标版本。"}
         />
         {!loading && objectVersions.length === 0 ? (
           <EmptyState
             icon={<FileText className="size-5" />}
             title="尚无对象版本"
-            description="创建 Brief 后，服务端会在此追加第一条不可变快照。"
+            description={STATIC_PREVIEW_ENABLED ? "从场景库启动合成回放后，浏览器会生成第一条演示快照。" : "创建 Brief 后，服务端会在此追加第一条不可变快照。"}
           />
         ) : (
           <div className="agent-run-list">
@@ -155,7 +161,7 @@ export function AuditView() {
           <EmptyState
             icon={<CircleHelp className="size-5" />}
             title="没有可展示的审计事件"
-            description={events.length ? "当前筛选条件没有匹配事件。" : "API 尚未返回事件；页面不会构造示例历史。"}
+            description={events.length ? "当前筛选条件没有匹配事件。" : STATIC_PREVIEW_ENABLED ? "当前浏览器还没有合成事件；请先启动固定场景。" : "API 尚未返回事件；页面不会构造示例历史。"}
           />
         ) : (
           <ol className="audit-timeline">
@@ -166,8 +172,8 @@ export function AuditView() {
 
       <div className="callout mt-5">
         <Fingerprint className="mb-2 size-5 text-[var(--teal)]" />
-        <strong>可复算，不等于可篡改</strong>
-        <p>同一数据与规则版本可以重放决策；历史对象与审批事件只追加，不由当前页面覆盖。</p>
+        <strong>{STATIC_PREVIEW_ENABLED ? "可复算的界面演示，不是生产审计" : "可复算，不等于可篡改"}</strong>
+        <p>{STATIC_PREVIEW_ENABLED ? "同一固定场景可在浏览器内重放；本地状态可被清除，请勿将它用作企业审计或真实审批证据。" : "同一数据与规则版本可以重放决策；历史对象与审批事件只追加，不由当前页面覆盖。"}</p>
       </div>
     </>
   );

@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, getErrorMessage } from "@/lib/api";
+import { publicAssetPath } from "@/lib/paths";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 import type { DemoScenario, ProjectDetail } from "@/lib/types";
 import { formatDateTime, projectDecision, outcomeOf } from "@/lib/presentation";
 import { OutcomeBadge } from "@/components/outcome-badge";
@@ -104,8 +106,8 @@ export function HomeDashboard() {
           <span><strong>试销官</strong><small>新品快反决策 Agent</small></span>
         </div>
         <div className="home-header__meta">
-          <StatusPill tone="info"><Database className="size-3.5" /> 本地演示 API</StatusPill>
-          <span>一个编排 Agent · 确定性规则 · 人工审批</span>
+          <StatusPill tone="info"><Database className="size-3.5" /> {STATIC_PREVIEW_ENABLED ? "GitHub Pages · 浏览器内回放" : "本地演示 API"}</StatusPill>
+          <span>{STATIC_PREVIEW_ENABLED ? "无 FastAPI · 无 SQLite · 无 DeepSeek · 状态仅存当前浏览器" : "一个编排 Agent · 确定性规则 · 人工审批"}</span>
         </div>
       </header>
 
@@ -122,7 +124,7 @@ export function HomeDashboard() {
             <span><CheckCircle2 className="size-4" /> 证据不足主动拒答</span>
             <span><CheckCircle2 className="size-4" /> 关键动作人工审批</span>
           </div>
-          <div className="mt-5">
+          {!STATIC_PREVIEW_ENABLED ? <div className="mt-5">
             <Button
               variant="secondary"
               loading={creating === "__draft__"}
@@ -131,11 +133,16 @@ export function HomeDashboard() {
             >
               <FilePlus2 className="size-4" /> 新建空白 Brief
             </Button>
-          </div>
+          </div> : (
+            <div className="callout callout--warn mt-5">
+              <strong>公开静态预览</strong>
+              <p>请从下方八个固定合成场景启动；空白 Brief、策略编辑、附件和真实数据入口仅在本地完整版开放。</p>
+            </div>
+          )}
         </div>
         <div className="home-hero__visual">
           <Image
-            src="/demo-shoe-colorways.png"
+            src={publicAssetPath("/demo-shoe-colorways.png")}
             alt="AI 生成的同款轻量休闲鞋深灰蓝与米白两个配色，用于合成试销演示"
             fill
             priority
@@ -176,14 +183,14 @@ export function HomeDashboard() {
           </div>
         </div>
 
-        {loading ? <LoadingPanel label="正在从 API 读取黄金场景…" /> : null}
+        {loading ? <LoadingPanel label={STATIC_PREVIEW_ENABLED ? "正在读取浏览器内固定场景…" : "正在从 API 读取黄金场景…"} /> : null}
         {error ? <ErrorPanel message={error} onRetry={() => void load()} /> : null}
         {actionError ? <ActionMessage tone="error">{actionError}</ActionMessage> : null}
 
         {!loading && !error && scenarios.length === 0 ? (
           <ErrorPanel
-            title="API 未返回可用场景"
-            message="没有展示占位结果。请检查后端是否已装载 8 个固定演示场景。"
+            title={STATIC_PREVIEW_ENABLED ? "静态场景未能装载" : "API 未返回可用场景"}
+            message={STATIC_PREVIEW_ENABLED ? "请刷新页面；本预览不会连接后端。" : "没有展示占位结果。请检查后端是否已装载 8 个固定演示场景。"}
             onRetry={() => void load()}
           />
         ) : null}
@@ -243,7 +250,7 @@ export function HomeDashboard() {
 
       <footer className="home-footer">
         <span>试销官 MVP · 比赛 Demo</span>
-        <span>合成数据仅验证流程与规则，不用于证明真实市场需求。</span>
+        <span>{STATIC_PREVIEW_ENABLED ? "GitHub Pages 浏览器内静态回放 · 状态只存在当前浏览器 · 非生产指令" : "合成数据仅验证流程与规则，不用于证明真实市场需求。"}</span>
       </footer>
     </main>
   );

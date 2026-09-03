@@ -37,6 +37,7 @@ import {
   stringifyValue,
 } from "@/lib/presentation";
 import type { EvidenceCard, EvidenceItem, MetricsReport, QualityIssue, QualityReport } from "@/lib/types";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function EvidenceView() {
   const { projectId, project, refresh } = useProject();
@@ -118,7 +119,7 @@ export function EvidenceView() {
         <EmptyState
           icon={<CircleHelp className="size-5" />}
           title="尚未生成质量报告与证据卡"
-          description="完成固定场景的逐日回放后，点击“执行质检与分析”。若数据不满足要求，后端会阻断强结论。"
+          description={STATIC_PREVIEW_ENABLED ? "完成固定场景的逐日回放后，点击“执行质检与分析”。浏览器内的同一门禁会在数据不足时拒绝强结论。" : "完成固定场景的逐日回放后，点击“执行质检与分析”。若数据不满足要求，后端会阻断强结论。"}
           action={<Button onClick={() => void analyze()} loading={analyzing}><PlayCircle className="size-4" /> 开始分析</Button>}
         />
       ) : null}
@@ -132,7 +133,7 @@ export function EvidenceView() {
             <div className="min-w-0 flex-1">
               <p>DATA QUALITY GATE</p>
               <h2>{qualityStatus === "PENDING" ? "质量状态待返回" : qualityStatus}</h2>
-              <span>{quality?.summary ?? "质量状态直接来自后端校验结果。"}</span>
+              <span>{quality?.summary ?? (STATIC_PREVIEW_ENABLED ? "质量状态来自浏览器内固定场景校验。" : "质量状态直接来自后端校验结果。")}</span>
             </div>
             <div className="quality-banner__meta">
               <small>SCHEMA</small>
@@ -146,7 +147,7 @@ export function EvidenceView() {
               <Surface className="panel-pad">
                 <SectionHeading
                   title="试销漏斗"
-                  description="可视化只使用 API 返回值；条形长度相对本组最大计数归一化。"
+                  description={STATIC_PREVIEW_ENABLED ? "可视化只使用浏览器内固定合成计数；条形长度相对本组最大计数归一化。" : "可视化只使用 API 返回值；条形长度相对本组最大计数归一化。"}
                   action={<StatusPill tone="info"><BarChart3 className="size-3.5" /> 确定性计算</StatusPill>}
                 />
                 <FunnelChart metrics={metrics} />
@@ -161,7 +162,7 @@ export function EvidenceView() {
                   <div className="evidence-list">
                     {evidenceItems.map((item, index) => <EvidenceRow item={item} index={index} key={item.id ?? `${item.title}-${index}`} />)}
                   </div>
-                ) : <p className="mono-note">API 尚未返回可展示的证据条目。</p>}
+                ) : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "当前固定录制尚未生成证据条目。" : "API 尚未返回可展示的证据条目。"}</p>}
               </Surface>
             </div>
 
@@ -261,7 +262,7 @@ function FunnelChart({ metrics }: { metrics?: MetricsReport }) {
   ].map((stage) => ({ ...stage, value: pickNumber(record, stage.keys) }));
   const available = stages.filter((stage) => stage.value !== undefined);
   if (!available.length) {
-    return <div className="chart-empty"><BarChart3 className="size-5" /><span>API 尚未返回漏斗计数</span></div>;
+    return <div className="chart-empty"><BarChart3 className="size-5" /><span>{STATIC_PREVIEW_ENABLED ? "固定录制尚未生成漏斗计数" : "API 尚未返回漏斗计数"}</span></div>;
   }
   const max = Math.max(1, ...available.map((stage) => stage.value ?? 0));
   const chartData = available.map((stage) => ({

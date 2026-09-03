@@ -23,6 +23,8 @@ import {
   projectBrief,
   stringifyValue,
 } from "@/lib/presentation";
+import { publicAssetPath } from "@/lib/paths";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function BriefView() {
   const { projectId, project } = useProject();
@@ -56,13 +58,13 @@ export function BriefView() {
         description="Brief 是后续实验和决策的唯一业务起点。缺失字段保留为待确认，不由模型补成事实。"
         actions={
           <>
-            <button
+            {!STATIC_PREVIEW_ENABLED ? <button
               className="button button--secondary"
               disabled={archived}
               onClick={() => setEditing((value) => !value)}
             >
               <PencilLine className="size-4" /> 编辑 Brief
-            </button>
+            </button> : <StatusPill tone="info">固定场景 Brief · 只读</StatusPill>}
             {workflowState === "DRAFT" ? (
               <StatusPill tone="warn">补齐关键字段后才能规划实验</StatusPill>
             ) : (
@@ -77,11 +79,17 @@ export function BriefView() {
       {!brief ? (
         <EmptyState
           icon={<CircleHelp className="size-5" />}
-          title="API 尚未返回 Product Brief"
-          description="页面不会使用占位业务数据。请返回场景库重新创建项目，或检查项目响应中的 brief 字段。"
+          title={STATIC_PREVIEW_ENABLED ? "静态场景未读取到 Product Brief" : "API 尚未返回 Product Brief"}
+          description={STATIC_PREVIEW_ENABLED ? "请返回场景库重新启动一个固定合成场景。" : "页面不会使用占位业务数据。请返回场景库重新创建项目，或检查项目响应中的 brief 字段。"}
         />
       ) : (
         <div className="stack">
+          {STATIC_PREVIEW_ENABLED ? (
+            <div className="callout callout--warn">
+              <strong>GitHub Pages 固定场景</strong>
+              <p>Brief 在此为只读合成快照，以保证预注册结果可复现。编辑与新版本仅在本地 FastAPI + SQLite 完整版开放。</p>
+            </div>
+          ) : null}
           {workflowState === "DRAFT" ? (
             <div className="callout callout--warn">
               <CircleHelp className="mb-2 size-5 text-[var(--amber)]" />
@@ -96,7 +104,7 @@ export function BriefView() {
             <Surface className="brief-hero">
               <div className="brief-hero__image">
                 <Image
-                  src="/demo-shoe-colorways.png"
+                  src={publicAssetPath("/demo-shoe-colorways.png")}
                   alt="AI 生成的轻量休闲鞋深灰蓝和米白配色示意，用于合成 Demo"
                   fill
                   sizes="(max-width: 1050px) 100vw, 55vw"
@@ -134,7 +142,7 @@ export function BriefView() {
 
             {candidates.length > 0 ? (
               <Surface className="panel-pad">
-                <SectionHeading title="候选方案" description="只比较 API 返回的候选项，不自动扩写材料或工艺。" />
+                <SectionHeading title="候选方案" description={STATIC_PREVIEW_ENABLED ? "只比较固定合成场景的两个配色，不自动扩写材料或工艺。" : "只比较 API 返回的候选项，不自动扩写材料或工艺。"} />
                 <div className="candidate-grid">
                   {candidates.map((candidate, index) => (
                     <article className="candidate-card" key={String(candidate.id ?? index)}>
@@ -163,7 +171,7 @@ export function BriefView() {
               <SectionHeading title="已知限制" description="限制不会被模型静默忽略。" />
               {constraints.length ? (
                 <ul className="plain-list">{constraints.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>
-              ) : <p className="mono-note">API 未返回额外限制。</p>}
+              ) : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "固定场景未录制额外限制。" : "API 未返回额外限制。"}</p>}
             </Surface>
             <div className="callout">
               <ShieldCheck className="mb-2 size-5 text-[var(--teal)]" />

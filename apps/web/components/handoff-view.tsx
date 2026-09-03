@@ -37,6 +37,8 @@ import {
   stringifyValue,
 } from "@/lib/presentation";
 import type { FirstOrderScenario, HandoffBundle, JsonValue, PivotRevision } from "@/lib/types";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
+import { openStaticPreviewReport } from "@/lib/static-preview";
 
 interface TechPackFieldView {
   name: string;
@@ -230,11 +232,17 @@ export function HandoffView() {
             title={canGenerate ? "尚未生成下游草稿" : "交接门尚未满足"}
             description={
               canGenerate
-                ? "点击上方按钮，由后端根据已批准决策生成结构化草稿。"
+                ? STATIC_PREVIEW_ENABLED
+                  ? "点击上方按钮，由浏览器内固定规则根据已批准决策生成评审草稿。"
+                  : "点击上方按钮，由后端根据已批准决策生成结构化草稿。"
                 : approved && (outcome === "GO" || outcome === "PIVOT") && !assumptions
-                  ? "当前 Brief 缺少首单情景假设提案，后端会拒绝生成交接物。"
+                  ? STATIC_PREVIEW_ENABLED
+                    ? "当前固定 Brief 缺少首单情景假设提案，浏览器门禁会拒绝生成交接物。"
+                    : "当前 Brief 缺少首单情景假设提案，后端会拒绝生成交接物。"
                 : approved && (outcome === "GO" || outcome === "PIVOT") && !assumptionsConfirmed
-                  ? "先由当前操作者确认绑定到当前 Brief 版本的首单情景假设；未确认时后端也会拒绝生成。"
+                  ? STATIC_PREVIEW_ENABLED
+                    ? "先由当前操作者确认绑定到当前 Brief 版本的首单情景假设；未确认时浏览器门禁会拒绝生成。"
+                    : "先由当前操作者确认绑定到当前 Brief 版本的首单情景假设；未确认时后端也会拒绝生成。"
                 : outcome === "PIVOT" && approved
                   ? "先生成 PivotRevision，再由人工审批当前精确版本；DecisionCard 审批不能替代修订审批。"
                 : outcome === "EVIDENCE_INSUFFICIENT"
@@ -284,9 +292,21 @@ export function HandoffView() {
                 {scenarios.length ? <OrderScenarios scenarios={scenarios} /> : <p className="mono-note">当前交接不包含首单情景。</p>}
               </Surface>
               <Surface className="panel-pad">
-                <SectionHeading title="完整决策报告" description="由 API 生成 HTML，包含来源、规则、限制与审批记录。" />
-                <a className="button button--secondary w-full" href={reportUrl(projectId)} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" /> 打开 HTML 报告
+                <SectionHeading
+                  title={STATIC_PREVIEW_ENABLED ? "浏览器评审快照" : "完整决策报告"}
+                  description={STATIC_PREVIEW_ENABLED ? "由当前浏览器合成状态生成，包含场景、指标、原因码、限制与演示记录。" : "由 API 生成 HTML，包含来源、规则、限制与审批记录。"}
+                />
+                <a
+                  className="button button--secondary w-full"
+                  href={STATIC_PREVIEW_ENABLED ? "#" : reportUrl(projectId)}
+                  onClick={STATIC_PREVIEW_ENABLED ? (event) => {
+                    event.preventDefault();
+                    openStaticPreviewReport();
+                  } : undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink className="size-4" /> {STATIC_PREVIEW_ENABLED ? "打开评审快照" : "打开 HTML 报告"}
                 </a>
               </Surface>
               <div className="callout callout--warn">
@@ -375,7 +395,7 @@ function OrderScenarios({ scenarios }: { scenarios: FirstOrderScenario[] }) {
         <div className={index === 1 ? "is-baseline" : ""} key={scenario.name ?? scenario.label ?? index}>
           <span>{scenario.label ?? scenarioName(scenario.name, index)}</span>
           <strong>{scenario.quantity_range ?? quantityRange(scenario)}</strong>
-          <small>{scenario.rationale ?? scenario.risk ?? scenario.assumptions?.join("；") ?? "以 API 返回假设为准"}</small>
+          <small>{scenario.rationale ?? scenario.risk ?? scenario.assumptions?.join("；") ?? (STATIC_PREVIEW_ENABLED ? "以固定场景假设为准" : "以 API 返回假设为准")}</small>
         </div>
       ))}
     </div>

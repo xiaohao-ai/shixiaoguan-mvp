@@ -7,6 +7,7 @@ import type { ApprovalDecision, ApprovalGate } from "@/lib/types";
 import { useProject } from "@/components/project-context";
 import { projectDecision, projectPivotRevision } from "@/lib/presentation";
 import { ActionMessage, Button, SectionHeading, Surface } from "@/components/ui";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function ApprovalPanel({
   gate,
@@ -49,8 +50,8 @@ export function ApprovalPanel({
       const body = {
         gate,
         decision,
-        actor: actor.trim() || "比赛演示操作员",
-        comment: comment.trim() || undefined,
+        actor: STATIC_PREVIEW_ENABLED ? "比赛演示操作员" : actor.trim() || "比赛演示操作员",
+        comment: STATIC_PREVIEW_ENABLED ? undefined : comment.trim() || undefined,
         object_version: objectVersion ?? 0,
       };
       if (gate === "PIVOT_REVISION" && pivotRevision) {
@@ -79,29 +80,35 @@ export function ApprovalPanel({
   return (
     <Surface className="panel-pad approval-panel">
       <SectionHeading title={title} description={description} />
-      <div className="form-grid">
-        <div className="form-field">
-          <label htmlFor={`${gate}-actor`}>审批人</label>
-          <input
-            id={`${gate}-actor`}
-            className="input"
-            value={actor}
-            onChange={(event) => setActor(event.target.value)}
-            disabled={!canSubmit}
-          />
+      {STATIC_PREVIEW_ENABLED ? (
+        <ActionMessage tone="info">
+          GitHub Pages 使用固定演示操作者“比赛演示操作员”，不采集姓名或审批意见。
+        </ActionMessage>
+      ) : (
+        <div className="form-grid">
+          <div className="form-field">
+            <label htmlFor={`${gate}-actor`}>审批人</label>
+            <input
+              id={`${gate}-actor`}
+              className="input"
+              value={actor}
+              onChange={(event) => setActor(event.target.value)}
+              disabled={!canSubmit}
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor={`${gate}-comment`}>审批意见（可选）</label>
+            <input
+              id={`${gate}-comment`}
+              className="input"
+              placeholder="说明通过、驳回或补充数据的原因"
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              disabled={!canSubmit}
+            />
+          </div>
         </div>
-        <div className="form-field">
-          <label htmlFor={`${gate}-comment`}>审批意见（可选）</label>
-          <input
-            id={`${gate}-comment`}
-            className="input"
-            placeholder="说明通过、驳回或补充数据的原因"
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            disabled={!canSubmit}
-          />
-        </div>
-      </div>
+      )}
       <div className="approval-actions">
         {allowApprove ? (
           <Button
@@ -144,7 +151,7 @@ export function ApprovalPanel({
       </div>
       {!canSubmit ? (
         <ActionMessage tone="info">
-          {disabled ? "当前没有可审批的结构化对象。" : "API 未返回对象版本，已禁止提交旧版本审批。"}
+          {disabled ? "当前没有可审批的结构化对象。" : STATIC_PREVIEW_ENABLED ? "固定录制未包含对象版本，已禁止提交审批。" : "API 未返回对象版本，已禁止提交旧版本审批。"}
         </ActionMessage>
       ) : null}
       {message ? <ActionMessage tone={message.tone}>{message.text}</ActionMessage> : null}

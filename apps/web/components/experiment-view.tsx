@@ -23,6 +23,7 @@ import {
   pickNumber,
   pickString,
 } from "@/lib/presentation";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function ExperimentView() {
   const { projectId, project, refresh } = useProject();
@@ -78,7 +79,9 @@ export function ExperimentView() {
       <PageHeading
         eyebrow="02 · Experiment contract"
         title="把假设变成可审计实验"
-        description="主指标、预算、周期与停止规则在审批后锁定；Agent 只能提出草案，不能自行执行投放。"
+        description={STATIC_PREVIEW_ENABLED
+          ? "GitHub Pages 使用固定录制的指标、预算、周期和停止规则；审批仅改变当前浏览器状态。"
+          : "主指标、预算、周期与停止规则在审批后锁定；Agent 只能提出草案，不能自行执行投放。"}
         actions={plan ? (
           <Link className="button" href={`/projects/${projectId}/simulation`}>
             进入试销回放 <ArrowRight className="size-4" />
@@ -105,8 +108,10 @@ export function ExperimentView() {
       {!plan ? (
         <EmptyState
           icon={<CircleHelp className="size-5" />}
-          title={planNeedsRegeneration ? "当前 Brief 或策略需要新计划" : "API 尚未返回实验计划"}
-          description="先调用单编排 Agent 归一化当前 Brief，再由确定性模板写入新的版本化实验计划。旧计划不会被重新审批。"
+          title={planNeedsRegeneration ? "当前 Brief 或策略需要新计划" : STATIC_PREVIEW_ENABLED ? "静态场景尚未装载实验计划" : "API 尚未返回实验计划"}
+                   description={STATIC_PREVIEW_ENABLED
+            ? "浏览器可从当前固定 Brief 恢复同一份录制计划；不会调用 DeepSeek 或写入服务端。"
+            : "先调用单编排 Agent 归一化当前 Brief，再由确定性模板写入新的版本化实验计划。旧计划不会被重新审批。"}
           action={
             <Button onClick={() => void regeneratePlan()} loading={regenerating}>
               <Sparkles className="size-4" /> 归一化并生成新计划
@@ -188,7 +193,7 @@ export function ExperimentView() {
                 <SectionHeading title="停止规则" description="避免看到中途结果后随意停止。" />
                 {stopRules.length ? (
                   <ul className="plain-list">{stopRules.map((rule, index) => <li key={`${rule.code}-${index}`}><span><strong>{rule.code}</strong> · {rule.description}</span></li>)}</ul>
-                ) : <p className="mono-note">API 未返回停止规则。</p>}
+                ) : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "固定录制未包含停止规则。" : "API 未返回停止规则。"}</p>}
               </Surface>
               <Surface className="panel-pad">
                 <SectionHeading title="护栏与合规" />
@@ -205,7 +210,7 @@ export function ExperimentView() {
               <div className="callout">
                 <CheckCircle2 className="mb-2 size-5 text-[var(--teal)]" />
                 <strong>审批产生审计事件</strong>
-                <p>审批人、意见、时间与对象版本由后端保存，前端不会在本地伪造“已批准”。</p>
+                <p>{STATIC_PREVIEW_ENABLED ? "审批人、意见和版本只记录在当前浏览器，仅用于体验门禁，不是真实授权。" : "审批人、意见、时间与对象版本由后端保存，前端不会在本地伪造“已批准”。"}</p>
               </div>
             </aside>
           </div>

@@ -7,6 +7,7 @@ import { useProject } from "@/components/project-context";
 import { ActionMessage, Button, SectionHeading, StatusPill, Surface } from "@/components/ui";
 import { api, attachmentContentUrl, getErrorMessage } from "@/lib/api";
 import { formatDateTime } from "@/lib/presentation";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 import type { ProjectAttachment } from "@/lib/types";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -25,7 +26,7 @@ export function AttachmentPanel() {
   const { projectId, project } = useProject();
   const { attachmentUploadEnabled } = useApiStatus();
   const archived = (project?.workflow_state ?? project?.status) === "ARCHIVED";
-  const previewUploadDisabled = attachmentUploadEnabled === false;
+  const previewUploadDisabled = STATIC_PREVIEW_ENABLED || attachmentUploadEnabled === false;
   const uploadDisabled = archived || previewUploadDisabled;
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [file, setFile] = useState<File>();
@@ -108,7 +109,7 @@ export function AttachmentPanel() {
               setMessage(undefined);
             }}
           />
-          <small>限 JPG / PNG / WebP，单张最大 5 MB；服务端会再校验文件头。</small>
+          <small>{STATIC_PREVIEW_ENABLED ? "GitHub Pages 评审版不接收或保存任何附件。" : "限 JPG / PNG / WebP，单张最大 5 MB；服务端会再校验文件头。"}</small>
         </div>
         <div className="form-field">
           <label htmlFor="rights-declaration">图片权属声明</label>

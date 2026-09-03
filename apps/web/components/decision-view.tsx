@@ -25,6 +25,7 @@ import {
 import { api } from "@/lib/api";
 import { outcomeMeta, outcomeOf, projectDecision } from "@/lib/presentation";
 import type { DecisionCard } from "@/lib/types";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export function DecisionView() {
   const { projectId, project } = useProject();
@@ -120,7 +121,7 @@ export function DecisionView() {
                 <SectionHeading title="下一步动作" description="建议按顺序执行，每一步仍受人工审批和业务约束控制。" />
                 {nextActions.length ? (
                   <ol className="numbered-list">{nextActions.map((action, index) => <li key={`${action}-${index}`}><span>{index + 1}</span><span>{action}</span></li>)}</ol>
-                ) : <p className="mono-note">API 未返回下一步动作。</p>}
+                ) : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "固定录制未包含下一步动作。" : "API 未返回下一步动作。"}</p>}
               </Surface>
 
               <ApprovalPanel
@@ -135,11 +136,11 @@ export function DecisionView() {
             <aside className="stack">
               <Surface className="panel-pad">
                 <SectionHeading title="主要风险" />
-                {risks.length ? <ul className="plain-list">{risks.map((risk, index) => <li key={`${risk}-${index}`}>{risk}</li>)}</ul> : <p className="mono-note">API 未返回额外风险。</p>}
+                {risks.length ? <ul className="plain-list">{risks.map((risk, index) => <li key={`${risk}-${index}`}>{risk}</li>)}</ul> : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "固定录制未包含额外风险。" : "API 未返回额外风险。"}</p>}
               </Surface>
               <Surface className="panel-pad">
                 <SectionHeading title="适用限制" />
-                {limitations.length ? <ul className="plain-list">{limitations.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : <p className="mono-note">API 未返回额外限制。</p>}
+                {limitations.length ? <ul className="plain-list">{limitations.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : <p className="mono-note">{STATIC_PREVIEW_ENABLED ? "固定录制未包含额外限制。" : "API 未返回额外限制。"}</p>}
               </Surface>
               <div className="callout">
                 <BookOpenCheck className="mb-2 size-5 text-[var(--teal)]" />

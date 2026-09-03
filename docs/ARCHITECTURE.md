@@ -469,9 +469,9 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 
 - P0 附件按项目对象键隔离并校验路径；多租户与向量索引不在本轮实现
 - API 密钥仅存放于环境变量或密钥服务；本地根启动器从 `.env` 载入后只向 API 子进程环境注入 `DEEPSEEK_API_KEY`，从 Web 子进程环境删除全部已知模型凭据，并从两个子进程环境都删除遗留 `OPENAI_API_KEY`；若发现 `NEXT_PUBLIC_DEEPSEEK_API_KEY` 或 `NEXT_PUBLIC_OPENAI_API_KEY` 则拒绝启动
-- 平台无关的公开预览容器始终启用 `PUBLIC_PREVIEW_MODE`：在构造 Agent 前清除所有 DeepSeek/OpenAI Key 环境项并强制 `OFFLINE_REPLAY`，Next 同域入口与 FastAPI 都在读取 multipart body 前拒绝附件上传；健康响应显式报告预览模式和上传能力状态
-- 公开预览的 Next 同域代理对 `POST/PUT/PATCH/DELETE` 等写请求限制为 256 KiB，并按转发客户端地址实施每固定分钟 60 次的进程内轻量限流；附件禁用检查仍在读取 body 和计数之前返回 `403`，超限分别返回带 `no-store` 的 `413/429`
-- 限流键依赖托管平台在请求进入应用前覆盖 `X-Forwarded-For`/`X-Real-IP`；自托管或多层代理必须重新校准可信代理链。计数表上限为 4,096 个键，超出后进入共享溢出桶且每窗口清理，避免无界 Map；该机制只是单进程基础滥用缓解，不是身份认证、租户隔离、分布式限流或 DDoS 防护
+- GitHub Pages 评审版不包含服务端运行时：静态构建注入 `NEXT_PUBLIC_STATIC_PREVIEW=1`，浏览器请求由静态适配器处理，不接触 FastAPI、SQLite、模型 Key 或外部网络；附件入口关闭
+- Pages 评审状态只保存在当前浏览器的站点存储中，并可随时重置；它不是共享数据库、身份隔离、备份或审计存证。代码中的显式水印持续说明该边界
+- 平台无关的可选预览容器仍保留 `PUBLIC_PREVIEW_MODE` 作为本地安全复现路径：在构造 Agent 前清除所有 DeepSeek/OpenAI Key 环境项并强制 `OFFLINE_REPLAY`，Next 同域入口与 FastAPI 都在读取 multipart body 前拒绝附件上传；其进程内请求上限与限流只是基础滥用缓解，不是身份认证、租户隔离或 DDoS 防护
 - 默认不使用企业数据训练公共模型
 - 向模型发送数据前执行字段最小化和脱敏
 - 对用户上传文档、网页和工具返回内容按“不可信数据”处理，防止 Prompt Injection
@@ -501,7 +501,7 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 - 向量检索：本轮不引入，后续有授权商品库时再选型
 - 报告导出：响应式 HTML 与浏览器打印样式；本轮不生成原生 PDF
 - 测试：Pytest、前端组件测试、API 集成测试、Playwright E2E、八场景黄金回归和契约漂移检查；CI 不调用付费模型
-- 本地开发：一个根命令同时启动 Web 与 API，Docker 不是开发前提；另提供单容器公开预览候选入口
+- 本地开发：一个根命令同时启动 Web 与 API，Docker 不是开发前提；另提供 GitHub Pages 静态评审版与可选的单容器本地复现入口
 - 日志：数据库追加式审计表＋运行时服务日志
 - 监控：基础错误记录和调用耗时即可
 - 版本控制与许可：本地 Git＋GitHub 公开仓库 `xiaohao-ai/shixiaoguan-mvp`，MIT License；只提交代码、文档、Schema 与合成 fixture
@@ -520,24 +520,28 @@ P0 只在文档中保留未来接入契约，不实现这些适配器，也不�
 
 当真实任务出现长时间运行、并发投放或多个企业系统接入时，再引入任务队列和事件总线。
 
-### 14.3 Render 公开预览入口
+### 14.3 GitHub Pages 公开评审入口
 
-该入口只解决“用一个公网域名查看当前合成 Demo”，当前部署选型为 Render Free Singapore 单 Docker Web Service，不构成生产环境：
+该入口只解决“用 GitHub 免费域名查看和反馈当前产品”，地址为 `https://xiaohao-ai.github.io/shixiaoguan-mvp/`，不构成完整后端或生产环境：
 
 ```text
-容器 PID 1：preview-server.mjs
-├── Next.js standalone  0.0.0.0:$PORT       唯一公网监听
-│   ├── 页面与静态资源
-│   └── /api/v1/* → API_INTERNAL_ORIGIN     服务端同域代理
-└── Uvicorn             127.0.0.1:8100      FastAPI，1 worker，无 reload
+GitHub Pages /shixiaoguan-mvp/
+└── Next.js 静态导出
+    ├── 预生成页面与静态资源
+    └── 浏览器静态适配器
+        ├── 固定 SYNTHETIC 场景与确定性结果
+        └── 当前浏览器站点存储（可重置、不同步）
 ```
 
-- Web 客户端默认 API 地址是相对路径 `/api/v1`，避免把构建环境主机名写入浏览器包；现有 E2E 仍可通过 `NEXT_PUBLIC_API_BASE_URL` 显式覆盖。`API_INTERNAL_ORIGIN` 只在 Next.js 服务端读取。
-- 启动器校验并透传平台注入的 `$PORT`；若它与内部默认端口冲突，则移动内部端口。收到 `SIGINT/SIGTERM` 时，入口将信号转发给两个子进程，限时等待退出，再清理本次启动的临时目录。
-- 每次启动使用系统临时目录下的独立目录保存 SQLite 与上传路径，不挂载持久卷；公开预览禁用上传，因此上传目录只保留兼容结构。健康检查走公网同域 `/api/v1/health`，同时验证 `OFFLINE_REPLAY`、`public_preview_mode=true` 与 `attachment_upload_enabled=false`。
-- 镜像以非 root 用户运行。即使宿主错误注入模型 Key、`MODEL_MODE=live`、持久数据库或上传路径，启动器与 API 二次边界仍移除 Key、强制回放并忽略持久路径。
-- 根目录 `render.yaml` 固定免费计划、Singapore 区域、同域健康检查和 `checksPass` 自动部署；因此 `main` 的安全、前后端、契约、容器与 E2E 检查未通过时不应发布新版本。
-- 这是无认证、无租户隔离的短期合成 Demo。同域代理已有 256 KiB 写请求上限和每客户端每分钟 60 次的单进程固定窗口限流，但其他写接口仍可被访客调用，且该限流不是身份或 DDoS 安全边界。因此不能输入敏感信息、不能承载真实企业数据，也不能把临时存储误解为用户隔离或备份；长期公开前仍需增加访问控制、共享限流与专门滥用防护。
+- Pages 构建使用仓库子路径作为 `basePath`，启用静态导出和尾随斜杠；动态项目路由只生成显式允许的演示 ID，不能把任意后端对象误装成可访问资源。
+- 静态适配器复用前端 Schema 和门禁表达，允许评审 Brief、审批、模拟、质检、证据、四态决策、交接和审计页面；它不声称复用了 FastAPI 状态机或 SQLite 事务语义。
+- 健康状态显式返回静态回放、公开评审和附件禁用标志；附件、在线 Agent、任意 API 请求及服务端报告端点均不可用。报告查看使用浏览器内生成/打印能力。
+- 当前状态只对同一浏览器和站点有效；刷新或直接打开预生成深链可继续，清除站点数据会恢复初始场景。不得输入真实企业、个人或其他敏感数据。
+- `.github/workflows/pages.yml` 在 `main` 的 CI 通过后构建静态产物，使用 GitHub 官方 Pages artifact 与 deploy actions 发布；工作流只授予读取代码、写 Pages 和签发部署身份所需的最小权限。
+
+### 14.4 可选单容器本地复现
+
+原有 Next.js 同域代理＋回环 FastAPI 单容器仍用于本地验证完整双栈公开边界，不再部署到 Render。`PUBLIC_PREVIEW_MODE` 会移除模型 Key、强制离线回放、禁用附件并使用一次性临时 SQLite；代理保留 256 KiB 写请求上限和每客户端每分钟 60 次的进程内限流。它可验证容器启动、信号转发、同域代理和后端门禁，但不是当前公开 URL，也不是生产安全边界。
 
 ## 15. 仓库目录基线
 

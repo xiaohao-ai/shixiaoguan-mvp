@@ -18,6 +18,12 @@ import type {
   TrialObservation,
 } from "@/lib/types";
 import type { components } from "@/lib/api.generated";
+import {
+  staticPreviewAttachmentUrl,
+  staticPreviewRequest,
+  StaticPreviewRequestError,
+} from "@/lib/static-preview";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 import { z } from "zod";
 
 type ApiHealthResponse = components["schemas"]["HealthResponse"];
@@ -25,6 +31,8 @@ type ApiHealthResponse = components["schemas"]["HealthResponse"];
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/v1"
 ).replace(/\/$/, "");
+
+export { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -50,6 +58,17 @@ async function request<T>(
   init: RequestInit = {},
   timeoutMs = 15_000,
 ): Promise<T> {
+  if (STATIC_PREVIEW_ENABLED) {
+    try {
+      return await staticPreviewRequest<T>(path, init);
+    } catch (error) {
+      if (error instanceof StaticPreviewRequestError) {
+        throw new ApiError(error.status, error.detail);
+      }
+      throw error;
+    }
+  }
+
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
 
@@ -442,10 +461,12 @@ export const api = {
 };
 
 export function attachmentContentUrl(projectId: string, attachmentId: string): string {
+  if (STATIC_PREVIEW_ENABLED) return staticPreviewAttachmentUrl();
   return `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/attachments/${encodeURIComponent(attachmentId)}/content`;
 }
 
 export function reportUrl(projectId: string): string {
+  if (STATIC_PREVIEW_ENABLED) return "#";
   return `${API_BASE_URL}/projects/${encodeURIComponent(projectId)}/report`;
 }
 

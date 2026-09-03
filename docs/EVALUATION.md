@@ -279,7 +279,7 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - 修复后验证：前端 38 个单测、ESLint、TypeScript 检查、Next.js 生产构建均通过；Playwright 5 个纵向闭环场景全部通过。按 CI 等价生产路径重新构建后，启动日志确认使用 `next start`，5 个场景在 6.4 秒内通过。本地默认路径的启动日志仍确认使用 `next dev`；后续公开预览改动将 E2E API 路径统一为同域代理。
 - 修复提交 `8499782` 的 GitHub Actions run `33712756182` 最终状态为 `Success`：security、backend、frontend、contract、e2e 共 5 个作业全部通过，总耗时 2 分 10 秒。页面仍有 Actions 依赖内部 Node.js 20 运行时弃用警告，但没有失败检查。
 
-### 2026-09-03 单容器公开预览入口验证
+### 2026-09-03 可选单容器公开边界验证
 
 - 浏览器默认 API 地址改为同域 `/api/v1`，Next.js 动态 Route Handler 按原路径、查询、方法、请求体与必要请求头代理到容器内 FastAPI；CI/E2E 可继续用 `NEXT_PUBLIC_API_BASE_URL` 覆盖。生产构建已确认包含动态 `/api/v1/[...path]` 路由。
 - `PUBLIC_PREVIEW_MODE` 后端集成测试覆盖：非法开关值启动失败；`MODEL_MODE=live` 和已注入的 DeepSeek/OpenAI Key 仍只能得到 `OFFLINE_REPLAY`；Key 在 Agent 构造前从环境移除；外部数据库/上传路径被忽略并改到系统临时目录；附件上传在解析 multipart 前返回 `403`，且允许来源下仍带正确 CORS 头；健康接口公开安全能力标志。定向结果为 4/4 通过。
@@ -287,4 +287,15 @@ reason = "P0 uses synthetic data and deterministic DemoPolicy v1; no enterprise-
 - 公开预览的匿名写入边界另覆盖：声明长度和无 `Content-Length` 流式 body 均在 256 KiB 处截断并返回 `413`；边界值可转发；同一转发客户端在固定分钟内前 60 次写请求通过、第 61 次返回带 `Retry-After` 和 `no-store` 的 `429`；不同客户端及下一窗口可正常运行，`GET/OPTIONS` 不消耗写额度。定向代理测试 7/7、TypeScript 和 ESLint 通过。
 - 启动器测试以隔离的假 API/Web 子进程验证 `$PORT`、内部端口冲突规避、单 API worker、无 `--reload`、子进程凭据剥离，以及收到 `SIGTERM` 后两个子进程退出并删除本次临时目录。真实本地双进程冒烟还验证了 `PORT=43123` 下首页 HTTP 200、同域健康响应、同域创建 `GO` 合成项目和上传 `403`，随后 `SIGTERM` 退出码为 0、相关子进程和临时目录均无残留。
 - 当前机器没有 Docker CLI，因此未在本地执行镜像构建；CI 新增容器作业负责实际构建镜像、启动单容器、经同域健康路径核对回放/预览/上传三项标志、验证上传 `403`，并用容器停止流程覆盖 `SIGTERM`。首次远端运行前，不能把“Dockerfile 静态检查与本地等价进程通过”表述为“镜像已验证”。
-- 残余风险：公开预览没有认证和多租户隔离，除附件外的合成 Demo 写接口仍对访客开放；256 KiB 请求上限和每转发客户端每分钟 60 次的限流只在单进程内生效，依赖托管平台覆盖转发 IP，不构成身份认证或 DDoS 防护。临时目录只提供易失性而非用户隔离。该入口只适合短期合成演示，不得录入企业、个人或其他敏感数据。
+- 残余风险：单容器没有认证和多租户隔离，除附件外的合成 Demo 写接口仍可被调用；256 KiB 请求上限和每转发客户端每分钟 60 次的限流只在单进程内生效，不构成身份认证或 DDoS 防护。临时目录只提供易失性而非用户隔离。D-042 后该容器只保留为本地复现工具，不是公开托管入口。
+
+### 2026-09-03 GitHub Pages 静态评审版验收
+
+- 构建门禁：以 `NEXT_PUBLIC_STATIC_PREVIEW=1` 和仓库 `basePath=/shixiaoguan-mvp` 执行静态导出；产物不得包含需要服务端运行时的 Route Handler，并检查首页、项目深链、静态资源与图片路径。
+- 行为门禁：在无 FastAPI、SQLite、DeepSeek Key 和外部 API 的条件下，至少回归 `PIVOT_DESIGN`、`GO` 与 `INSUFFICIENT_DATA`；审批前端不可绕过，证据不足不得进入交接，附件始终禁用。
+- 持久与重置：同一浏览器刷新及直接打开预生成深链后仍能恢复当前评审状态；清理当前站点存储后恢复初始演示，且不会影响其他访客或本地完整版本。
+- 边界文案：每个主要页面持续显示 `SYNTHETIC`、GitHub Pages 浏览器内回放、无真实后端/模型以及“非生产指令”；任何页面不得显示“API 在线”“服务端状态机”或把本地浏览器状态称作后端审计存证。
+- 发布门禁：GitHub Actions 的常规 CI 成功后，Pages workflow 才上传并部署静态 artifact；最终以公开 URL `https://xiaohao-ai.github.io/shixiaoguan-mvp/` 的 HTTP 状态、资产加载、直接深链和主流程浏览器巡检为验收证据。
+- 本地实现验证：Web Vitest 59/59、后端 Pytest 135/135、ESLint、Ruff、Mypy、TypeScript、普通 Next 生产构建、OpenAPI 契约漂移和凭据扫描全部通过；普通构建仍保留动态 `/api/v1/[...path]`，Pages 构建成功导出 12 个静态页面且不包含 `/api`。
+- Pages Playwright 1/1 通过：在 `/shixiaoguan-mvp/` 子路径完成 `PIVOT_DESIGN` 的计划审批→完整回放→质检分析→决策展示，验证 Decision 深链刷新、固定演示审批人、附件首屏禁用、零 `/api` 请求、零浏览器错误，以及 Blob 评审快照中的项目、场景、结果和非生产声明。原有双栈 Playwright 5/5 仍通过。
+- 发布设置验证：GitHub REST 已确认仓库 `private=false`；仓库 Settings → Pages 的 Source 已保存为 `GitHub Actions`，默认 `xiaohao-ai.github.io` 域名强制 HTTPS。首次部署前公开 URL 返回 404 属于预期，只有 `ci` 与后续 `pages` workflow 均成功后才判定上线。

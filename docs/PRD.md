@@ -243,7 +243,7 @@ P0 实现四个独立人工门禁，审批均绑定目标对象 ID 与精确 `ob
 | `/projects/:id/handoff` | TechPack Lite、打样任务与条件式首单情景 | 仅已批准 Go 或已批准精确修订版本的 Pivot 进入；首单假设还需当前操作者针对当前 Brief 版本独立确认；严格执行产物矩阵 |
 | `/projects/:id/audit` | 输入版本、场景/数据哈希、规则、Agent 运行/确定性服务审计、审批时间线与 HTML 报告 | 审计事件只追加、不覆盖 |
 
-全局顶部固定显示 `data_origin`、`data_sensitivity_level`、在线/回放模式、`workflow_state` 和“非生产指令”。审批展示必须读取对象的 `approval_status` 或确认对象，不能仅凭 workflow 推断已批准。
+全局顶部固定显示 `data_origin`、`data_sensitivity_level`、在线/回放模式、`workflow_state` 和“非生产指令”。审批展示必须读取对象的 `approval_status` 或确认对象，不能仅凭 workflow 推断已批准。GitHub Pages 评审版还必须固定显示“浏览器内静态回放、无 FastAPI/SQLite/DeepSeek、状态仅存当前浏览器”，不得沿用“API 在线”或“服务端状态机”等本地完整版文案。
 
 ## 9. 功能需求
 
@@ -621,6 +621,8 @@ Agent 必须：
 服务端在项目创建与每次 Brief 版本更新时拒绝非 `SYNTHETIC` 的 `data_status`。图片附件不改变观测来源；无附件时 `data_sensitivity_level=SYNTHETIC_ONLY`，存在用户图片时为 `USER_CONTENT_RESTRICTED`。
 
 企业授权数据、主办方数据、公开样例和用户上传数据保留为 P1 输入类型；在完成授权、脱敏、字段映射与数据隔离前，不进入本轮 P0 流程。
+
+GitHub Pages 是 P0 的公开评审衍生版，不是新增数据入口。它只读取仓库内固定的 `SYNTHETIC` 场景定义，以浏览器内静态适配器演示同一页面链与门禁表达，并把评审进度保存在当前站点存储中；它不调用 FastAPI、SQLite、DeepSeek 或任意外部数据源，附件入口必须关闭。清理站点数据应恢复初始演示，不能把该浏览器状态描述为共享审计存证。
 
 不允许：
 

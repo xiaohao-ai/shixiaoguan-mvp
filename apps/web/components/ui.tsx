@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { AlertTriangle, LoaderCircle, RotateCw } from "lucide-react";
+import { STATIC_PREVIEW_ENABLED } from "@/lib/static-preview-mode";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -103,7 +104,7 @@ export function LoadingPanel({ label = "正在读取项目数据…" }: { label?
       <LoaderCircle aria-hidden="true" className="size-6 animate-spin text-[var(--teal)]" />
       <div>
         <strong>{label}</strong>
-        <p>界面只展示 API 返回的真实结果，不会填充推测数据。</p>
+        <p>{STATIC_PREVIEW_ENABLED ? "界面只展示浏览器内固定合成录制，不连接后端或真实数据。" : "界面只展示 API 返回的真实结果，不会填充推测数据。"}</p>
       </div>
     </div>
   );
